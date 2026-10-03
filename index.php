@@ -26,7 +26,8 @@ $config = [
     'leaderboard' => $hasDb && $s['leaderboard'],
     'showBoard'   => $hasDb && $s['leaderboard'],
     'sound'       => (bool) $s['sound'],
-    'audioUrl'    => 'audio/',
+    'music'       => (bool) $s['music'],
+    'today'       => fb_today(),
 ];
 ?>
 <!DOCTYPE html>
@@ -49,6 +50,7 @@ $config = [
 
     <script type="application/json" id="fb-config"><?= json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
     <script src="js/sprite.js"></script>
+    <script src="js/audio.js"></script>
     <script src="js/game.js"></script>
 </body>
 </html>

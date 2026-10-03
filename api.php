@@ -1,7 +1,7 @@
 <?php
 /**
- * JSON API:  GET api.php  -> top scores
- *            POST api.php -> save a score  {name, score, duration}
+ * JSON API:  GET  api.php[?mode=daily&day=YYYY-MM-DD] -> top scores
+ *            POST api.php -> save a score  {name, score, duration, mode, day}
  */
 
 declare(strict_types=1);
@@ -30,7 +30,9 @@ try {
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        fb_json(200, fb_scores_top((int) $s['leaderboard_size']));
+        $mode = ($_GET['mode'] ?? '') === 'daily' ? 'daily' : 'classic';
+        $day  = isset($_GET['day']) && is_string($_GET['day']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['day']) ? $_GET['day'] : fb_today();
+        fb_json(200, fb_scores_top((int) $s['leaderboard_size'], $mode, $day));
     }
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         fb_json(405, ['message' => 'Method not allowed.']);
@@ -52,6 +54,12 @@ try {
         fb_json(400, ['message' => 'That score could not be verified.']);
     }
 
+    $mode = is_array($in) && ($in['mode'] ?? '') === 'daily' ? 'daily' : 'classic';
+    $day  = is_array($in) ? (string) ($in['day'] ?? '') : '';
+    if ($mode === 'daily' && !fb_day_valid($day)) {
+        fb_json(400, ['message' => "That daily challenge has ended."]);
+    }
+
     $ipHash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . fb_config()['salt']);
     if (fb_scores_recent_from($ipHash, 5)) {
         fb_json(429, ['message' => 'Slow down a little.']);
@@ -61,8 +69,8 @@ try {
     $name = trim(preg_replace('/[\x00-\x1F\x7F<>]/u', '', $name) ?? '');
     $name = $name !== '' ? mb_substr($name, 0, 24) : 'Anonymous';
 
-    fb_scores_add($name, $score, $duration, $ipHash);
-    fb_json(200, ['scores' => fb_scores_top((int) $s['leaderboard_size'])]);
+    fb_scores_add($name, $score, $duration, $ipHash, $mode, $day);
+    fb_json(200, ['scores' => fb_scores_top((int) $s['leaderboard_size'], $mode, $day)]);
 } catch (Throwable $e) {
     error_log('Flying Bird API: ' . $e->getMessage());
     fb_json(500, ['message' => 'Server error.']);

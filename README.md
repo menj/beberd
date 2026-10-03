@@ -43,6 +43,17 @@ and custom colours), **Gameplay** (difficulty, sound), **Scores** (moderate), **
 Colour schemes are CSS custom properties in `css/game.css` (`--fb-bg1`, `--fb-pipe`, `--fb-bird`, `--fb-beak`, …).
 Built in: Auto (light/dark), Dawn, Midnight, Mono, Forest, Sunset, plus Custom.
 
+## Game modes and feel
+
+* **Classic** is endless flying at your chosen difficulty.
+* **Daily challenge** gives everyone the same pipes for the day (seeded by the UTC date, always Normal difficulty).
+  With a database it has its own daily leaderboard; without one your best of the day is kept in the browser.
+* **Medals** at 10 (bronze), 25 (silver) and 50 (gold).
+* **Feel:** squash-and-stretch flaps, feather trail, score pop, and on impact a flash, screen shake, hit-stop and pixel burst
+  (all disabled for visitors who prefer reduced motion).
+* **Sound:** every effect and the background music loop are synthesised with Web Audio, so there are no audio files.
+  The streak is audible: the point chime rises in pitch with your score, and the music speeds up.
+
 ## Controls
 
 | | |
@@ -64,7 +75,7 @@ install.php        web installer          css/admin.css  admin panel
 admin.php          tabbed settings        js/game.js     game engine (canvas)
 database/schema.sql                       js/sprite.js   pixel-art bird + wing frames
 includes/          db, settings, bootstrap js/admin.js    admin behaviour
-audio/             sound effects
+js/audio.js        synthesised sound + music
 ```
 
 ## Security notes

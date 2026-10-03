@@ -78,8 +78,24 @@ function fb_install_schema(PDO $pdo, string $prefix): void
     foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
         $pdo->exec($statement);
     }
-    // Future schema changes go here, guarded by version, e.g.:
-    // if ($from < 2) { $pdo->exec("ALTER TABLE ..."); }
+
+    // Migrations. Each step is idempotent, so this is also safe as a "repair".
+    // v2: daily challenge columns on the scores table.
+    $scores = '`' . $prefix . 'scores`';
+    if (!fb_column_exists($pdo, $prefix . 'scores', 'mode')) {
+        $pdo->exec("ALTER TABLE $scores ADD COLUMN `mode` VARCHAR(10) NOT NULL DEFAULT 'classic' AFTER `ip_hash`");
+    }
+    if (!fb_column_exists($pdo, $prefix . 'scores', 'day')) {
+        $pdo->exec("ALTER TABLE $scores ADD COLUMN `day` DATE NULL AFTER `mode`");
+        $pdo->exec("ALTER TABLE $scores ADD KEY `mode_day_score` (`mode`, `day`, `score`)");
+    }
+}
+
+function fb_column_exists(PDO $pdo, string $table, string $column): bool
+{
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+    $stmt->execute([$table, $column]);
+    return (bool) $stmt->fetchColumn();
 }
 
 function fb_setting_row(PDO $pdo, string $name): ?string
@@ -98,22 +114,41 @@ function fb_setting_write(PDO $pdo, string $name, string $value): void
 
 /* ---------- Scores ---------- */
 
-function fb_scores_top(int $limit): array
+/** Daily challenges are keyed by UTC date. */
+function fb_today(): string
+{
+    return gmdate('Y-m-d');
+}
+
+/** Accept today's date, plus yesterday's for a short grace period around midnight UTC. */
+function fb_day_valid(string $day): bool
+{
+    return $day === fb_today() || $day === gmdate('Y-m-d', time() - 3600);
+}
+
+function fb_scores_top(int $limit, string $mode = 'classic', ?string $day = null): array
 {
     $limit = max(1, min(100, $limit));
-    $rows  = fb_db()->query('SELECT player_name AS name, score FROM ' . fb_table('scores')
-        . ' ORDER BY score DESC, id ASC LIMIT ' . $limit)->fetchAll();
+    if ($mode === 'daily') {
+        $stmt = fb_db()->prepare('SELECT player_name AS name, score FROM ' . fb_table('scores')
+            . " WHERE mode = 'daily' AND day = ? ORDER BY score DESC, id ASC LIMIT " . $limit);
+        $stmt->execute([$day ?: fb_today()]);
+    } else {
+        $stmt = fb_db()->query('SELECT player_name AS name, score FROM ' . fb_table('scores')
+            . " WHERE mode = 'classic' ORDER BY score DESC, id ASC LIMIT " . $limit);
+    }
+    $rows = $stmt->fetchAll();
     foreach ($rows as &$r) {
         $r['score'] = (int) $r['score'];
     }
     return $rows;
 }
 
-function fb_scores_add(string $name, int $score, int $durationMs, string $ipHash): int
+function fb_scores_add(string $name, int $score, int $durationMs, string $ipHash, string $mode = 'classic', ?string $day = null): int
 {
     $pdo = fb_db();
-    $pdo->prepare('INSERT INTO ' . fb_table('scores') . ' (player_name, score, duration_ms, ip_hash, created_at) VALUES (?,?,?,?,?)')
-        ->execute([mb_substr($name, 0, 40), $score, $durationMs, $ipHash, gmdate('Y-m-d H:i:s')]);
+    $pdo->prepare('INSERT INTO ' . fb_table('scores') . ' (player_name, score, duration_ms, ip_hash, mode, day, created_at) VALUES (?,?,?,?,?,?,?)')
+        ->execute([mb_substr($name, 0, 40), $score, $durationMs, $ipHash, $mode, $mode === 'daily' ? $day : null, gmdate('Y-m-d H:i:s')]);
     return (int) $pdo->lastInsertId();
 }
 
@@ -132,7 +167,7 @@ function fb_scores_count(): int
 function fb_scores_page(int $perPage, int $page): array
 {
     $offset = max(0, ($page - 1) * $perPage);
-    return fb_db()->query('SELECT id, player_name, score, created_at FROM ' . fb_table('scores')
+    return fb_db()->query('SELECT id, player_name, score, mode, day, created_at FROM ' . fb_table('scores')
         . ' ORDER BY id DESC LIMIT ' . (int) $perPage . ' OFFSET ' . (int) $offset)->fetchAll();
 }
 

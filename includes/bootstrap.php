@@ -6,7 +6,7 @@
 declare(strict_types=1);
 
 const FB_VERSION    = '2.0.0';
-const FB_DB_VERSION = 1;
+const FB_DB_VERSION = 2;
 
 define('FB_ROOT', dirname(__DIR__));
 define('FB_CONFIG_FILE', FB_ROOT . '/config.php');

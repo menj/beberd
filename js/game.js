@@ -14,9 +14,8 @@
 		gameOver: 'Game over', paused: 'Paused', newBest: 'New best!', yourName: 'Your name',
 		save: 'Save score', saved: 'Score saved', saveFailed: 'Could not save score',
 		leaderboard: 'Leaderboard', noScores: 'No scores yet. Be the first!',
-		hint: 'Tap, click or press Space to flap', tagline: 'Help Hamilton fly through the pipes. Tap, click or press Space to flap.', mute: 'Mute', unmute: 'Unmute', pause: 'Pause'
+		daily: 'Daily challenge', classic: 'Classic', tryDaily: 'Try the daily challenge', tryClassic: 'Play classic', dailyBoard: "Today's leaderboard", hint: 'Tap, click or press Space to flap', tagline: 'Help Hamilton fly through the pipes.', mute: 'Mute', unmute: 'Unmute', pause: 'Pause'
 	}, {});
-	var AUDIO_URL = CFG.audioUrl || './audio/';
 
 	// Logical world size; the canvas is scaled to fit its container.
 	var W = 420, H = 640, GROUND = 64;
@@ -52,27 +51,53 @@
 		return n;
 	}
 
-	var sfxCache = {};
-	function sfx(name, muted) {
-		var a = sfxCache[name];
-		if (!a) {
-			a = sfxCache[name] = new Audio(AUDIO_URL + 'sfx_' + name + '.wav');
-			a.volume = 0.5;
+	function snd(name, arg) {
+		if (window.FBAudio) { FBAudio.play(name, arg); }
+	}
+
+	// Deterministic RNG so everyone gets the same pipes in the daily challenge.
+	function seedFrom(str) {
+		var h = 1779033703 ^ str.length;
+		for (var i = 0; i < str.length; i++) {
+			h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+			h = (h << 13) | (h >>> 19);
 		}
-		if (muted) { return; }
-		try {
-			a.currentTime = 0;
-			var p = a.play();
-			if (p && p.catch) { p.catch(function () {}); }
-		} catch (e) { /* ignore */ }
+		h = Math.imul(h ^ (h >>> 16), 2246822507);
+		h = Math.imul(h ^ (h >>> 13), 3266489909);
+		return (h ^ (h >>> 16)) >>> 0;
+	}
+	function mulberry32(a) {
+		return function () {
+			a |= 0; a = (a + 0x6D2B79F5) | 0;
+			var t = Math.imul(a ^ (a >>> 15), 1 | a);
+			t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+		};
+	}
+
+	var MEDALS = [
+		{ at: 50, key: 'gold', label: 'Gold' },
+		{ at: 25, key: 'silver', label: 'Silver' },
+		{ at: 10, key: 'bronze', label: 'Bronze' }
+	];
+	function medalFor(score) {
+		for (var i = 0; i < MEDALS.length; i++) { if (score >= MEDALS[i].at) { return MEDALS[i]; } }
+		return null;
 	}
 
 	function Game(root) {
 		this.root = root;
-		this.diff = DIFFICULTY[root.getAttribute('data-difficulty')] || DIFFICULTY.normal;
+		this.baseDiff = DIFFICULTY[root.getAttribute('data-difficulty')] || DIFFICULTY.normal;
+		this.diff = this.baseDiff;
+		this.mode = 'classic';
+		this.day = CFG.today || new Date().toISOString().slice(0, 10);
+		this.shake = 0; this.flash = 0; this.pop = 0; this.freeze = 0;
 		var storedMute = store('fb_muted');
 		this.muted = storedMute === null ? CFG.sound === false : storedMute === '1';
-		this.best = parseInt(store('fb_best'), 10) || 0;
+		if (window.FBAudio) {
+			FBAudio.setMuted(this.muted);
+			FBAudio.setMusicEnabled(CFG.music !== false);
+		}
 		this.state = 'ready';
 		this.hover = false;
 		this.build();
@@ -150,6 +175,15 @@
 		this.sprites = window.FBSprite ? FBSprite.build(this.pal) : null;
 	};
 
+	/* ---------- Scores per mode ---------- */
+
+	Game.prototype.bestKey = function (mode) { return mode === 'daily' ? 'fb_daily_' + this.day : 'fb_best'; };
+	Game.prototype.bestFor = function (mode) { return parseInt(store(this.bestKey(mode)), 10) || 0; };
+	Game.prototype.dayLabel = function () {
+		try { return new Date(this.day + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }); }
+		catch (e) { return this.day; }
+	};
+
 	/* ---------- Overlays ---------- */
 
 	Game.prototype.showOverlay = function (name, data) {
@@ -165,13 +199,13 @@
 		var primary;
 		if (name === 'start') {
 			c.appendChild(el('h2', 'fb-title', 'Flying Bird'));
-			c.appendChild(el('p', 'fb-sub', T.tagline));
-			if (this.best) { c.appendChild(this.stats(null, this.best)); }
+			var bestClassic = this.bestFor('classic');
+			c.appendChild(el('p', 'fb-sub', T.tagline + (bestClassic ? ' · ' + T.best + ' ' + bestClassic : '')));
 			primary = el('button', 'fb-btn', T.play);
 			primary.type = 'button';
-			primary.addEventListener('click', function () { self.begin(); });
+			primary.addEventListener('click', function () { self.begin('classic'); });
 			c.appendChild(primary);
-			if (CFG.showBoard && CFG.apiUrl) { this.boardInto(c); }
+			c.appendChild(this.dailyButton());
 		} else if (name === 'paused') {
 			c.appendChild(el('h2', 'fb-title', T.paused));
 			c.appendChild(el('p', 'fb-sub', 'P / Esc'));
@@ -180,18 +214,48 @@
 			primary.addEventListener('click', function () { self.resume(); });
 			c.appendChild(primary);
 		} else if (name === 'over') {
+			var daily = this.mode === 'daily';
+			if (daily) { c.appendChild(el('span', 'fb-tag', T.daily + ' · ' + this.dayLabel())); }
 			if (data.isBest) { c.appendChild(el('span', 'fb-badge', T.newBest)); }
 			c.appendChild(el('h2', 'fb-title', T.gameOver));
-			c.appendChild(this.stats(this.score, this.best));
+			var medal = medalFor(this.score);
+			if (medal) { c.appendChild(this.medalEl(medal)); }
+			c.appendChild(this.stats(this.score, this.bestFor(this.mode)));
 			if (CFG.leaderboard && CFG.apiUrl && this.score > 0) { this.saveFormInto(c); }
 			primary = el('button', 'fb-btn', T.playAgain);
 			primary.type = 'button';
 			primary.addEventListener('click', function () { self.begin(); });
 			c.appendChild(primary);
+			if (daily) {
+				var other = el('button', 'fb-btn fb-btn-ghost', T.tryClassic);
+				other.type = 'button';
+				other.addEventListener('click', function () { self.begin('classic'); });
+				c.appendChild(other);
+			} else {
+				c.appendChild(this.dailyButton());
+			}
 			if (CFG.showBoard && CFG.apiUrl) { this.boardInto(c); }
 		}
 		this.overlay.classList.add('is-open');
 		if (primary && name !== 'start') { primary.focus({ preventScroll: true }); }
+	};
+
+	Game.prototype.dailyButton = function () {
+		var self = this, done = this.bestFor('daily');
+		var b = el('button', 'fb-btn fb-btn-ghost');
+		b.type = 'button';
+		b.appendChild(document.createTextNode(T.daily + ' · ' + this.dayLabel()));
+		if (done) { b.appendChild(el('small', 'fb-btn-note', T.best + ' ' + done)); }
+		b.addEventListener('click', function () { self.begin('daily'); });
+		return b;
+	};
+
+	Game.prototype.medalEl = function (medal) {
+		var m = el('div', 'fb-medal fb-medal--' + medal.key);
+		m.setAttribute('role', 'img');
+		m.setAttribute('aria-label', medal.label + ' medal');
+		m.appendChild(el('span', null, medal.label));
+		return m;
 	};
 
 	Game.prototype.stats = function (score, best) {
@@ -208,7 +272,7 @@
 
 	Game.prototype.boardInto = function (parent, highlight) {
 		var box = el('div', 'fb-board');
-		box.appendChild(el('h3', null, T.leaderboard));
+		box.appendChild(el('h3', null, this.overlayName === 'over' && this.mode === 'daily' ? T.dailyBoard : T.leaderboard));
 		var list = el('ol');
 		list.style.cssText = 'margin:0;padding:0;list-style:none';
 		box.appendChild(list);
@@ -240,7 +304,8 @@
 
 	Game.prototype.loadBoard = function (highlight) {
 		var self = this;
-		fetch(CFG.apiUrl, { credentials: 'same-origin' })
+		var q = this.overlayName === 'over' && this.mode === 'daily' ? '?mode=daily&day=' + encodeURIComponent(this.day) : '?mode=classic';
+		fetch(CFG.apiUrl + q, { credentials: 'same-origin' })
 			.then(function (r) { return r.ok ? r.json() : []; })
 			.then(function (rows) { self.renderBoard(Array.isArray(rows) ? rows : [], highlight); })
 			.catch(function () { self.renderBoard([]); });
@@ -284,7 +349,7 @@
 			method: 'POST',
 			credentials: 'same-origin',
 			headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CFG.csrf || '' },
-			body: JSON.stringify({ name: name, score: score, duration: Math.round(this.playMs) })
+			body: JSON.stringify({ name: name, score: score, duration: Math.round(this.playMs), mode: this.mode, day: this.day })
 		}).then(function (r) {
 			return r.json().then(function (j) { return { ok: r.ok, body: j }; });
 		}).then(function (res) {
@@ -378,7 +443,9 @@
 	};
 
 	Game.prototype.reset = function () {
-		this.bird = { y: H * 0.42, vy: 0, rot: 0, anim: 99 };
+		this.bird = { y: H * 0.42, vy: 0, rot: 0, anim: 99, sq: 0 };
+		this.rng = this.mode === 'daily' ? mulberry32(seedFrom('flying-bird:' + this.day)) : Math.random;
+		this.shake = this.flash = this.pop = this.freeze = 0;
 		this.pipes = [];
 		this.particles = [];
 		this.score = 0;
@@ -390,28 +457,16 @@
 		this.spawnPipe(W + 120);
 	};
 
-	// iOS/Android only allow audio that was started by a tap; prime the effects once.
-	var audioPrimed = false;
-	function primeAudio() {
-		if (audioPrimed) { return; }
-		audioPrimed = true;
-		['point', 'hit', 'die'].forEach(function (name) {
-			sfx(name, true); // creates the element without sound
-			var a = sfxCache[name];
-			if (!a) { return; }
-			a.muted = true;
-			var p = a.play();
-			var done = function () { a.pause(); a.currentTime = 0; a.muted = false; };
-			if (p && p.then) { p.then(done, function () { a.muted = false; }); } else { done(); }
-		});
-	}
-
-	Game.prototype.begin = function () {
-		primeAudio();
+	Game.prototype.begin = function (mode) {
+		if (mode) { this.mode = mode; }
+		// The daily challenge is always Normal so everyone flies the same course.
+		this.diff = this.mode === 'daily' ? DIFFICULTY.normal : this.baseDiff;
 		this.reset();
 		this.state = 'playing';
 		this.showOverlay(null);
-		sfx('swooshing', this.muted);
+		if (window.FBAudio) { FBAudio.unlock(); FBAudio.setIntensity(0); }
+		snd('swoosh');
+		if (window.FBAudio) { FBAudio.musicStart(); }
 		this.bird.vy = FLAP;
 		this.bird.anim = 0;
 		this.stage.focus({ preventScroll: true });
@@ -426,12 +481,15 @@
 		if (this.state !== 'playing') { return; }
 		this.bird.vy = FLAP;
 		this.bird.anim = 0; // restart the wing-beat cycle
-		sfx('wing', this.muted);
+		this.bird.sq = 1;   // squash & stretch
+		this.puff();
+		snd('flap');
 	};
 
 	Game.prototype.pause = function () {
 		if (this.state !== 'playing') { return; }
 		this.state = 'paused';
+		if (window.FBAudio) { FBAudio.musicStop(); }
 		this.showOverlay('paused');
 	};
 
@@ -439,6 +497,7 @@
 		if (this.state !== 'paused') { return; }
 		this.state = 'playing';
 		this.showOverlay(null);
+		if (window.FBAudio) { FBAudio.musicStart(); }
 		this.stage.focus({ preventScroll: true });
 	};
 
@@ -450,24 +509,42 @@
 		this.muted = !this.muted;
 		store('fb_muted', this.muted ? '1' : '0');
 		this.updateMuteBtn();
+		if (window.FBAudio) {
+			FBAudio.setMuted(this.muted);
+			if (!this.muted && this.state === 'playing') { FBAudio.musicStart(); }
+		}
 	};
 
 	Game.prototype.die = function (reason) {
+		var self = this;
 		this.state = 'over';
 		this.overAt = performance.now();
-		sfx(reason === 'pipe' ? 'hit' : 'die', this.muted);
+		if (window.FBAudio) { FBAudio.musicStop(); }
+		snd(reason === 'pipe' ? 'hit' : 'die');
 		if (!reducedMotion) {
-			for (var i = 0; i < 16; i++) {
-				var a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 220;
-				this.particles.push({ x: BIRD_X, y: this.bird.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 80, life: 1, r: 2 + Math.random() * 3 });
+			this.shake = 0.4;
+			this.flash = 1;
+			this.freeze = 0.07; // brief hit-stop makes the impact land
+			for (var i = 0; i < 18; i++) {
+				var a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 240;
+				this.particles.push({ x: BIRD_X, y: this.bird.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, life: 1, r: 2 + Math.random() * 3 });
 			}
 		}
-		var isBest = this.score > this.best;
-		if (isBest) {
-			this.best = this.score;
-			store('fb_best', String(this.best));
+		var key = this.bestKey(this.mode), prev = this.bestFor(this.mode);
+		var isBest = this.score > prev;
+		if (isBest) { store(key, String(this.score)); }
+		// Let the crash play out before the card slides in.
+		setTimeout(function () {
+			if (self.state === 'over') { self.showOverlay('over', { isBest: isBest && self.score > 0 }); }
+		}, reducedMotion ? 0 : 420);
+	};
+
+	// A little trail of feathers behind the bird on each flap.
+	Game.prototype.puff = function () {
+		if (reducedMotion) { return; }
+		for (var i = 0; i < 3; i++) {
+			this.particles.push({ x: BIRD_X - 18, y: this.bird.y + 6 + i * 4, vx: -50 - Math.random() * 50, vy: 25 + Math.random() * 35, life: 0.55, r: 2 + Math.random() * 2, puff: true });
 		}
-		this.showOverlay('over', { isBest: isBest && this.score > 0 });
 	};
 
 	/* ---------- Simulation ---------- */
@@ -475,7 +552,7 @@
 	Game.prototype.spawnPipe = function (x) {
 		var margin = 90, gap = this.diff.gap;
 		var min = margin + gap / 2, max = H - GROUND - margin - gap / 2;
-		var target = min + Math.random() * (max - min);
+		var target = min + this.rng() * (max - min);
 		// Limit the jump between consecutive gaps so every course is passable.
 		var gapY = Math.max(min, Math.min(max, this.lastGapY + Math.max(-170, Math.min(170, target - this.lastGapY))));
 		this.lastGapY = gapY;
@@ -485,13 +562,18 @@
 	Game.prototype.update = function (dt) {
 		var b = this.bird, i;
 
-		// Particles keep moving after death.
+		// Particles and effect timers keep running after death.
 		for (i = this.particles.length - 1; i >= 0; i--) {
 			var p = this.particles[i];
-			p.vy += GRAVITY * 0.5 * dt;
-			p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * 1.4;
+			if (!p.puff) { p.vy += GRAVITY * 0.5 * dt; }
+			p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * (p.puff ? 1.6 : 1.4);
 			if (p.life <= 0) { this.particles.splice(i, 1); }
 		}
+		this.shake = Math.max(0, this.shake - dt);
+		this.flash = Math.max(0, this.flash - dt * 4);
+		this.pop = Math.max(0, this.pop - dt * 5);
+		b.sq = Math.max(0, b.sq - dt * 7);
+		if (this.freeze > 0) { this.freeze -= dt; return; }
 
 		if (this.state === 'ready') {
 			b.y = H * 0.42 + Math.sin(performance.now() / 300) * 8;
@@ -526,7 +608,9 @@
 			if (!pipe.passed && pipe.x + PIPE_W < BIRD_X - BIRD_R) {
 				pipe.passed = true;
 				this.score++;
-				sfx('point', this.muted);
+				this.pop = 1;
+				snd('point', this.score);
+				if (window.FBAudio) { FBAudio.setIntensity(this.score); }
 			}
 			if (this.hits(pipe)) { this.die('pipe'); return; }
 		}
@@ -548,7 +632,7 @@
 			var cx = Math.max(r[0], Math.min(BIRD_X, r[0] + r[2]));
 			var cy = Math.max(r[1], Math.min(b.y, r[1] + r[3]));
 			var dx = BIRD_X - cx, dy = b.y - cy;
-			if (dx * dx + dy * dy < (BIRD_R - 1) * (BIRD_R - 1)) { return true; }
+			if (dx * dx + dy * dy < (BIRD_R - 3) * (BIRD_R - 3)) { return true; } // slightly smaller than the sprite: near-misses feel fair
 		}
 		return false;
 	};
@@ -613,12 +697,12 @@
 		for (var x = off; x < W; x += 32) { ctx.fillRect(x, H - GROUND + 22, 16, 4); }
 		ctx.globalAlpha = 1;
 
-		// Particles.
-		ctx.fillStyle = P.bird;
+		// Particles: square "pixels" to match the sprite.
 		for (i = 0; i < this.particles.length; i++) {
 			var q = this.particles[i];
-			ctx.globalAlpha = Math.max(0, q.life);
-			ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, Math.PI * 2); ctx.fill();
+			ctx.globalAlpha = Math.max(0, Math.min(1, q.life));
+			ctx.fillStyle = q.puff ? '#ffffff' : P.bird;
+			ctx.fillRect(Math.round(q.x - q.r), Math.round(q.y - q.r), q.r * 2, q.r * 2);
 		}
 		ctx.globalAlpha = 1;
 
@@ -630,8 +714,29 @@
 			ctx.textBaseline = 'alphabetic';
 			ctx.fillStyle = P.ink;
 			ctx.globalAlpha = this.state === 'over' ? 0.35 : 0.9;
-			ctx.fillText(String(this.score), W / 2, 104);
+			var k = 1 + 0.28 * this.pop; // score pops when you clear a pipe
+			ctx.save();
+			ctx.translate(W / 2, 104);
+			ctx.scale(k, k);
+			ctx.fillText(String(this.score), 0, 0);
+			ctx.restore();
 			ctx.globalAlpha = 1;
+		}
+
+		// Impact flash and screen shake (shake is a CSS transform, so no edges show).
+		if (this.flash > 0) {
+			ctx.fillStyle = '#ffffff';
+			ctx.globalAlpha = this.flash * 0.5;
+			ctx.fillRect(0, 0, W, H);
+			ctx.globalAlpha = 1;
+		}
+		if (this.shake > 0) {
+			var m = this.shake * 18;
+			this.canvas.style.transform = 'translate(' + ((Math.random() - 0.5) * m).toFixed(1) + 'px,' + ((Math.random() - 0.5) * m).toFixed(1) + 'px)';
+			this.shaking = true;
+		} else if (this.shaking) {
+			this.canvas.style.transform = '';
+			this.shaking = false;
 		}
 	};
 
@@ -671,6 +776,7 @@
 		ctx.save();
 		ctx.translate(BIRD_X, b.y);
 		ctx.rotate(rot);
+		ctx.scale(1 - 0.12 * b.sq, 1 + 0.18 * b.sq); // squash & stretch on flap
 		ctx.imageSmoothingEnabled = false;
 		ctx.drawImage(spr[this.wingPose()], -8 * S, -9.5 * S, FBSprite.width * S, FBSprite.height * S);
 		ctx.restore();
