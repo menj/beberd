@@ -23,11 +23,11 @@ function fb_installed(): bool
 
 function fb_config(): array
 {
-    static $config = null;
-    if ($config === null) {
-        $config = fb_installed() ? (array) require FB_CONFIG_FILE : [];
+    $r = &fb_registry();
+    if (!isset($r['config'])) {
+        $r['config'] = fb_installed() ? (array) require FB_CONFIG_FILE : [];
     }
-    return $config;
+    return $r['config'];
 }
 
 /** URL path of the directory the app lives in, e.g. "/flying-bird" or "". */

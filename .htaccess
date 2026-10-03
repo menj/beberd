@@ -1,6 +1,6 @@
 # Keep internals and credentials private (Apache). For nginx see README.
 Options -Indexes
-<FilesMatch "^(config\.php|schema\.sql)$">
+<FilesMatch "^(config\.php|schema\.[a-z]+\.sql)$|\.(sqlite3?|db)$">
   Require all denied
 </FilesMatch>
 

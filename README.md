@@ -10,6 +10,8 @@ It runs **with or without a database**. You play as Hamilton, a pixel-art bird w
 | Shared leaderboard | – | yes |
 | Admin panel (colour scheme, difficulty, scores) | – | yes |
 
+**Supported databases:** MySQL / MariaDB, PostgreSQL and SQLite (all through PDO). Pick one in the installer.
+
 ## Quick start
 
 ```bash
@@ -23,17 +25,25 @@ You can preview a look with `?scheme=midnight` or `?difficulty=hard`.
 
 Open `/install.php` (there is a link in the page footer). Like the WordPress installer, it:
 
-1. checks your server (PHP, PDO MySQL, writable folder),
-2. connects to MySQL / MariaDB and **creates the database if it doesn't exist**,
-3. **creates all tables automatically** from `database/schema.sql`, so no manual SQL import is needed,
-4. creates your admin account and writes `config.php`,
-5. locks itself once finished (delete `config.php` to run it again).
+1. checks your server (PHP, writable folder, which database drivers are installed),
+2. lets you choose **MySQL / MariaDB, PostgreSQL or SQLite**,
+3. creates the database for you where the engine allows it (MySQL and PostgreSQL need a user with the right to; SQLite just creates a file),
+4. **creates all tables automatically** from `database/schema.<engine>.sql`, so no manual SQL import is needed,
+5. creates your admin account and writes `config.php`,
+6. locks itself once finished (delete `config.php` to run it again).
 
-The schema is versioned. If a future release changes it, tables are upgraded automatically on the
-next request, and the admin **Database** tab can re-check or repair them at any time.
-If the database ever becomes unreachable the game keeps working and only the leaderboard is hidden.
+The schema is versioned. If a future release changes it, tables are upgraded automatically on the next request, and the
+admin **Database** tab can re-check or repair them at any time. If the database ever becomes unreachable the game keeps
+working and only the leaderboard is hidden.
 
-Requirements: PHP 7.4+ with `pdo_mysql` and `mbstring`; MySQL 5.7+ / MariaDB 10.3+.
+| Engine | PHP extension | Notes |
+|---|---|---|
+| MySQL / MariaDB | `pdo_mysql` | MySQL 5.7+ / MariaDB 10.3+ (tested on MariaDB 10.11) |
+| PostgreSQL | `pdo_pgsql` | Tested on PostgreSQL 16 |
+| SQLite | `pdo_sqlite` | SQLite 3.24+ (upserts). The file defaults to `data/flying-bird.sqlite`. Prefer a path outside your web root when you can |
+
+Also requires PHP 7.4+ with `mbstring`. All three engines run the same test suite (schema, scores, daily boards, paging,
+moderation, and the v1 to v2 upgrade).
 
 ## Admin panel
 
@@ -100,7 +110,7 @@ index.php          the game page          css/game.css   game + colour schemes
 api.php            leaderboard JSON API   css/site.css   page chrome
 install.php        web installer          css/admin.css  admin panel
 admin.php          tabbed settings        js/game.js     game engine (canvas)
-database/schema.sql                       js/sprite.js   pixel-art bird + wing frames
+database/schema.*.sql                     js/sprite.js   pixel-art bird + wing frames
 includes/          db, settings, bootstrap js/admin.js    admin behaviour
 js/audio.js        synthesised sound + music
 sw.js, manifest.webmanifest, js/pwa.js, icons/   offline + install
@@ -108,8 +118,9 @@ sw.js, manifest.webmanifest, js/pwa.js, icons/   offline + install
 
 ## Security notes
 
-* Keep `config.php`, `includes/` and `database/` private. The bundled `.htaccess` does this on Apache.
-  On nginx add: `location ~ ^/(includes|database)/ { deny all; }` and `location = /config.php { deny all; }`.
+* Keep `config.php`, `includes/`, `database/` and (for SQLite) `data/` private. The bundled `.htaccess` files do this on Apache.
+  On nginx add: `location ~ ^/(includes|database|data)/ { deny all; }`, `location = /config.php { deny all; }` and
+  `location ~ \.(sqlite3?|db)$ { deny all; }`.
 * Passwords are hashed with `password_hash`, all queries are prepared, forms and the score API use CSRF tokens,
   and scores are sanity-checked and rate-limited.
 * Delete `install.php` after set-up if you like. It already refuses to run once installed.

@@ -31,7 +31,12 @@ code { font-size: .85em; padding: .1em .35em; border-radius: 4px; background: co
 	width: 100%; padding: 10px 12px; font: inherit; color: var(--pg-ink); background: transparent;
 	border: 1.5px solid var(--pg-line); border-radius: 10px;
 }
-.fb-panel input:focus-visible { outline: none; border-color: var(--pg-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pg-accent) 25%, transparent); }
+.fb-panel select {
+	width: 100%; padding: 10px 12px; font: inherit; color: var(--pg-ink); background: transparent;
+	border: 1.5px solid var(--pg-line); border-radius: 10px;
+}
+.fb-panel select option { color: #14213d; }
+.fb-panel input:focus-visible, .fb-panel select:focus-visible { outline: none; border-color: var(--pg-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pg-accent) 25%, transparent); }
 
 .fb-btn { display: block; width: 100%; padding: 12px 16px; font: inherit; font-weight: 600; text-align: center; text-decoration: none; color: #fff; background: var(--pg-accent); border: 0; border-radius: 10px; cursor: pointer; }
 .fb-btn:hover { filter: brightness(1.08); }
@@ -54,3 +59,4 @@ p > .fb-btn { margin-top: 6px; }
 
 .fb-install { margin-right: 14px; padding: 4px 12px; font: inherit; font-size: .8rem; color: var(--pg-ink); background: transparent; border: 1.5px solid var(--pg-line); border-radius: 999px; cursor: pointer; }
 .fb-install:hover { border-color: var(--pg-ink); }
+[hidden] { display: none !important; }
