@@ -51,3 +51,6 @@ p > .fb-btn { margin-top: 6px; }
 	.fb-shell { padding-inline: 8px; }
 	.fb-panel { padding: 20px 16px; border-radius: 12px; }
 }
+
+.fb-install { margin-right: 14px; padding: 4px 12px; font: inherit; font-size: .8rem; color: var(--pg-ink); background: transparent; border: 1.5px solid var(--pg-line); border-radius: 999px; cursor: pointer; }
+.fb-install:hover { border-color: var(--pg-ink); }

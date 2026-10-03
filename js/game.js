@@ -85,6 +85,66 @@
 		return null;
 	}
 
+	// Hamilton's wardrobe: looks and hats unlocked by playing.
+	var LOOKS = [
+		{ id: 'classic', name: 'Classic' },
+		{ id: 'ember',  name: 'Ember',  colors: { bird: '#ff6b4a', beak: '#ffd166' }, need: { pipes: 25 } },
+		{ id: 'frost',  name: 'Frost',  colors: { bird: '#9be7ff', beak: '#ff9f1c' }, need: { pipes: 100 } },
+		{ id: 'shadow', name: 'Shadow', colors: { bird: '#6c4ab6', beak: '#ffd23f' }, need: { pipes: 250 } },
+		{ id: 'golden', name: 'Golden', colors: { bird: '#ffcf33', beak: '#e2531f' }, need: { score: 50 } }
+	];
+	var HATS = [
+		{ id: 'none',   name: 'No hat' },
+		{ id: 'cap',    name: 'Cap',       need: { pipes: 50 } },
+		{ id: 'shades', name: 'Shades',    need: { pipes: 150 } },
+		{ id: 'party',  name: 'Party hat', need: { daily: true } },
+		{ id: 'crown',  name: 'Crown',     need: { score: 35 } }
+	];
+	var BEAT = ['up', 'mid', 'down', 'mid'];
+
+	// Hamilton's story: chapters unlock as you clear pipes.
+	var CHAPTERS = [
+		{ title: 'The Smallest Bird', need: null,
+		  text: 'On Pipe Hill, every spring the flock crosses the Great Pipes to reach the far shore. Hamilton, the smallest bird on the hill, was always told to wait for next year. This year, he leaves before dawn.' },
+		{ title: 'First Flight', need: { pipes: 10 },
+		  text: 'The pipes are taller than any tree Hamilton has ever known. His wings ache, but the wind is on his side, and for the first time nobody is telling him to wait.' },
+		{ title: 'The Whispering Pipes', need: { pipes: 50 },
+		  text: 'Between the pipes the wind hums an old song. Hamilton learns it by heart: dip low, climb late, trust the gap.' },
+		{ title: 'Night Crossing', need: { pipes: 150 },
+		  text: 'Dusk comes early on the crossing. The moon hangs low and gold, and Hamilton realises he is flying farther than the flock ever let him dream.' },
+		{ title: 'The Storm Gate', need: { pipes: 300 },
+		  text: 'Thunder rolls through the narrowest gaps of the Great Pipes. Hamilton almost turns back. Then he remembers the song, and flies straight through.' },
+		{ title: 'The Far Shore', need: { pipes: 600 },
+		  text: 'Salt air, warm sand, and the whole flock staring in disbelief. \u201cYou made it,\u201d says the oldest bird. Hamilton grins. \u201cTomorrow I fly back and show the others the way.\u201d That is why the crossing is different every single day.' }
+	];
+	// Short captions that appear mid-flight.
+	var CAPTIONS = { 5: 'Hamilton leaves Pipe Hill behind\u2026', 15: 'The Great Pipes loom ahead.', 30: 'The wind begins to hum\u2026', 50: 'Is that the far shore?' };
+
+	function progress() {
+		return {
+			pipes: parseInt(store('fb_total'), 10) || 0,
+			score: parseInt(store('fb_max'), 10) || 0,
+			daily: store('fb_dp') === '1'
+		};
+	}
+	function isUnlocked(item, pr) {
+		var n = item.need;
+		if (!n) { return true; }
+		return (n.pipes !== undefined && pr.pipes >= n.pipes) ||
+			(n.score !== undefined && pr.score >= n.score) ||
+			(n.daily === true && pr.daily);
+	}
+	function needText(item, pr) {
+		var n = item.need || {};
+		if (n.pipes !== undefined) { return 'Clear ' + n.pipes + ' pipes in total (' + Math.min(pr.pipes, n.pipes) + '/' + n.pipes + ')'; }
+		if (n.score !== undefined) { return 'Score ' + n.score + ' or more in one run'; }
+		return 'Finish a daily challenge run';
+	}
+	function byId(list, id) {
+		for (var i = 0; i < list.length; i++) { if (list[i].id === id) { return list[i]; } }
+		return list[0];
+	}
+
 	function Game(root) {
 		this.root = root;
 		this.baseDiff = DIFFICULTY[root.getAttribute('data-difficulty')] || DIFFICULTY.normal;
@@ -105,6 +165,7 @@
 		this.reset();
 		this.bind();
 		this.showOverlay('start');
+		if (store('fb_story_seen') !== '1') { this.storyIdx = 0; this.storyIntro = true; this.showOverlay('story'); }
 		this.stage.focus({ preventScroll: true });
 		this.last = performance.now();
 		var self = this;
@@ -143,6 +204,10 @@
 		hud.appendChild(actions);
 		this.stage.appendChild(hud);
 
+		this.toast = el('div', 'fb-toast');
+		this.toast.setAttribute('role', 'status');
+		this.stage.appendChild(this.toast);
+
 		this.overlay = el('div', 'fb-overlay');
 		this.overlay.setAttribute('role', 'dialog');
 		this.overlay.setAttribute('aria-live', 'polite');
@@ -172,7 +237,22 @@
 			pipe: get('pipe', '#3d8b6e'), bird: get('bird', '#ffd23f'), beak: get('beak', '#ff6b35'), ink: get('ink', '#14213d'),
 			surface: get('surface', '#fff')
 		};
-		this.sprites = window.FBSprite ? FBSprite.build(this.pal) : null;
+		this.rebuildSprites();
+	};
+
+	/** The saved look/hat, ignoring anything not (yet) unlocked. */
+	Game.prototype.outfit = function () {
+		var pr = progress();
+		var look = byId(LOOKS, store('fb_look') || 'classic');
+		var hat = byId(HATS, store('fb_hat') || 'none');
+		return {
+			look: isUnlocked(look, pr) && look.colors ? look.colors : null,
+			hat: isUnlocked(hat, pr) && hat.id !== 'none' ? hat.id : null
+		};
+	};
+
+	Game.prototype.rebuildSprites = function () {
+		this.sprites = window.FBSprite ? FBSprite.build(this.pal, this.outfit()) : null;
 	};
 
 	/* ---------- Scores per mode ---------- */
@@ -190,6 +270,7 @@
 		var self = this, c = this.card;
 		c.textContent = '';
 		this.overlayName = name;
+		if (name && this.toast) { clearTimeout(this.toastTimer); this.toast.classList.remove('is-on'); }
 		this.pauseBtn.hidden = !(this.state === 'playing' || this.state === 'paused');
 		this.overlay.classList.toggle('fb-overlay--dock', name === 'start');
 		if (!name) {
@@ -201,11 +282,29 @@
 			c.appendChild(el('h2', 'fb-title', 'Flying Bird'));
 			var bestClassic = this.bestFor('classic');
 			c.appendChild(el('p', 'fb-sub', T.tagline + (bestClassic ? ' · ' + T.best + ' ' + bestClassic : '')));
-			primary = el('button', 'fb-btn', T.play);
-			primary.type = 'button';
-			primary.addEventListener('click', function () { self.begin('classic'); });
-			c.appendChild(primary);
-			c.appendChild(this.dailyButton());
+			if (CFG.startMode === 'daily') {
+				// Opened from the "Daily" shortcut: lead with the daily challenge.
+				primary = this.dailyButton();
+				primary.className = 'fb-btn';
+				c.appendChild(primary);
+				var classic = el('button', 'fb-btn fb-btn-ghost', T.classic);
+				classic.type = 'button';
+				classic.addEventListener('click', function () { self.begin('classic'); });
+				c.appendChild(classic);
+			} else {
+				primary = el('button', 'fb-btn', T.play);
+				primary.type = 'button';
+				primary.addEventListener('click', function () { self.begin('classic'); });
+				c.appendChild(primary);
+				c.appendChild(this.dailyButton());
+			}
+			c.appendChild(this.linkRow());
+		} else if (name === 'story') {
+			this.storyInto(c);
+			primary = c.querySelector('.fb-back');
+		} else if (name === 'wardrobe') {
+			this.wardrobeInto(c);
+			primary = c.querySelector('.fb-back');
 		} else if (name === 'paused') {
 			c.appendChild(el('h2', 'fb-title', T.paused));
 			c.appendChild(el('p', 'fb-sub', 'P / Esc'));
@@ -220,6 +319,7 @@
 			c.appendChild(el('h2', 'fb-title', T.gameOver));
 			var medal = medalFor(this.score);
 			if (medal) { c.appendChild(this.medalEl(medal)); }
+			if (data.unlocked && data.unlocked.length) { c.appendChild(el('p', 'fb-unlock', 'Unlocked: ' + data.unlocked.join(', '))); }
 			c.appendChild(this.stats(this.score, this.bestFor(this.mode)));
 			if (CFG.leaderboard && CFG.apiUrl && this.score > 0) { this.saveFormInto(c); }
 			primary = el('button', 'fb-btn', T.playAgain);
@@ -234,10 +334,132 @@
 			} else {
 				c.appendChild(this.dailyButton());
 			}
+			c.appendChild(this.linkRow());
 			if (CFG.showBoard && CFG.apiUrl) { this.boardInto(c); }
 		}
 		this.overlay.classList.add('is-open');
 		if (primary && name !== 'start') { primary.focus({ preventScroll: true }); }
+	};
+
+	Game.prototype.linkRow = function () {
+		var self = this, pr = progress();
+		var row = el('div', 'fb-link-row');
+		var open = CHAPTERS.filter(function (c) { return isUnlocked(c, pr); }).length;
+		var story = el('button', 'fb-btn fb-btn-link', 'Story ' + open + '/' + CHAPTERS.length);
+		story.type = 'button';
+		story.addEventListener('click', function () { self.storyIdx = open - 1; self.storyIntro = false; self.showOverlay('story'); });
+		row.appendChild(story);
+		row.appendChild(this.wardrobeButton());
+		return row;
+	};
+
+	Game.prototype.storyInto = function (c) {
+		var self = this, pr = progress();
+		var i = Math.max(0, Math.min(CHAPTERS.length - 1, this.storyIdx || 0)), ch = CHAPTERS[i];
+		var open = isUnlocked(ch, pr);
+		c.appendChild(el('span', 'fb-tag', this.storyIntro ? 'Hamilton\u2019s story' : 'Chapter ' + (i + 1) + ' of ' + CHAPTERS.length));
+		c.appendChild(el('h2', 'fb-title', open ? ch.title : 'Locked'));
+		var body = el('p', 'fb-story', open ? ch.text : needText(ch, pr));
+		c.appendChild(body);
+
+		if (!this.storyIntro) {
+			var nav = el('div', 'fb-story-nav');
+			var prev = el('button', 'fb-chip', '\u2039 Prev'), next = el('button', 'fb-chip', 'Next \u203a');
+			prev.type = next.type = 'button';
+			prev.disabled = i === 0; next.disabled = i === CHAPTERS.length - 1;
+			prev.addEventListener('click', function () { self.storyIdx = i - 1; self.showOverlay('story'); });
+			next.addEventListener('click', function () { self.storyIdx = i + 1; self.showOverlay('story'); });
+			nav.appendChild(prev); nav.appendChild(next);
+			c.appendChild(nav);
+		}
+		var back = el('button', 'fb-btn fb-back', this.storyIntro ? 'Let\u2019s fly' : 'Back');
+		back.type = 'button';
+		back.addEventListener('click', function () {
+			store('fb_story_seen', '1');
+			self.storyIntro = false;
+			self.showOverlay(self.state === 'over' ? 'over' : 'start', self.lastOver);
+		});
+		c.appendChild(back);
+	};
+
+	Game.prototype.caption = function (text) {
+		var t = this.toast;
+		t.textContent = text;
+		t.classList.add('is-on');
+		clearTimeout(this.toastTimer);
+		this.toastTimer = setTimeout(function () { t.classList.remove('is-on'); }, 2600);
+	};
+
+	Game.prototype.wardrobeButton = function () {
+		var self = this;
+		var b = el('button', 'fb-btn fb-btn-link', 'Hamilton\u2019s wardrobe');
+		b.type = 'button';
+		b.addEventListener('click', function () { self.wardNote = ''; self.showOverlay('wardrobe'); });
+		return b;
+	};
+
+	Game.prototype.wardrobeInto = function (c) {
+		var self = this, pr = progress();
+		c.appendChild(el('h2', 'fb-title', 'Wardrobe'));
+		c.appendChild(el('p', 'fb-sub', 'Pipes cleared: ' + pr.pipes + ' \u00b7 Best run: ' + pr.score));
+
+		this.previewCanvas = el('canvas', 'fb-preview');
+		this.previewCanvas.width = 20 * 5; this.previewCanvas.height = 18 * 5;
+		this.previewCanvas.setAttribute('aria-hidden', 'true');
+		c.appendChild(this.previewCanvas);
+
+		var note = el('p', 'fb-status', this.wardNote || 'Tap a locked item to see how to earn it.');
+		note.setAttribute('role', 'status');
+
+		var curLook = store('fb_look') || 'classic', curHat = store('fb_hat') || 'none';
+		var section = function (label, list, current, key) {
+			c.appendChild(el('h3', 'fb-label', label));
+			var row = el('div', 'fb-chips');
+			row.setAttribute('role', 'radiogroup');
+			row.setAttribute('aria-label', label);
+			list.forEach(function (item) {
+				var open = isUnlocked(item, pr);
+				var chip = el('button', 'fb-chip' + (open ? '' : ' is-locked') + (item.id === current && open ? ' is-on' : ''));
+				chip.type = 'button';
+				chip.setAttribute('role', 'radio');
+				chip.setAttribute('aria-checked', item.id === current && open ? 'true' : 'false');
+				if (key === 'fb_look') {
+					var sw = el('i', 'fb-chip-swatch');
+					sw.style.background = item.colors
+						? 'linear-gradient(135deg,' + item.colors.bird + ' 55%,' + item.colors.beak + ' 55%)'
+						: 'linear-gradient(135deg,var(--fb-bird) 55%,var(--fb-beak) 55%)';
+					chip.appendChild(sw);
+				}
+				chip.appendChild(document.createTextNode(item.name));
+				if (!open) { chip.appendChild(el('span', 'fb-lock', '\ud83d\udd12')); chip.setAttribute('aria-label', item.name + ', locked. ' + needText(item, pr)); }
+				chip.addEventListener('click', function () {
+					if (!open) { self.wardNote = needText(item, pr); note.textContent = self.wardNote; return; }
+					store(key, item.id);
+					self.wardNote = item.name + ' equipped.';
+					self.rebuildSprites();
+					self.showOverlay('wardrobe');
+				});
+				row.appendChild(chip);
+			});
+			c.appendChild(row);
+		};
+		section('Look', LOOKS, curLook, 'fb_look');
+		section('Hat', HATS, curHat, 'fb_hat');
+		c.appendChild(note);
+
+		var back = el('button', 'fb-btn fb-back', 'Back');
+		back.type = 'button';
+		back.addEventListener('click', function () { self.previewCanvas = null; self.showOverlay(self.state === 'over' ? 'over' : 'start', self.lastOver); });
+		c.appendChild(back);
+	};
+
+	Game.prototype.drawPreview = function (now) {
+		var cv = this.previewCanvas, spr = this.sprites;
+		if (!cv || !spr) { return; }
+		var ctx = cv.getContext('2d');
+		ctx.clearRect(0, 0, cv.width, cv.height);
+		ctx.imageSmoothingEnabled = false;
+		ctx.drawImage(spr[BEAT[Math.floor(now / 130) % 4]], 0, 0, cv.width, cv.height);
 	};
 
 	Game.prototype.dailyButton = function () {
@@ -459,6 +681,8 @@
 
 	Game.prototype.begin = function (mode) {
 		if (mode) { this.mode = mode; }
+		store('fb_story_seen', '1');
+		this.storyIntro = false;
 		// The daily challenge is always Normal so everyone flies the same course.
 		this.diff = this.mode === 'daily' ? DIFFICULTY.normal : this.baseDiff;
 		this.reset();
@@ -530,12 +754,25 @@
 				this.particles.push({ x: BIRD_X, y: this.bird.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, life: 1, r: 2 + Math.random() * 3 });
 			}
 		}
+		// Lifetime progress drives the wardrobe unlocks.
+		var before = progress();
+		var all = LOOKS.concat(HATS, CHAPTERS).filter(function (it) { return it.need; });
+		var wasOpen = all.map(function (it) { return isUnlocked(it, before); });
+		store('fb_total', String(before.pipes + this.score));
+		if (this.score > before.score) { store('fb_max', String(this.score)); }
+		if (this.mode === 'daily' && this.score > 0) { store('fb_dp', '1'); }
+		var after = progress(), unlocked = [];
+		all.forEach(function (it, i) {
+			if (!wasOpen[i] && isUnlocked(it, after)) { unlocked.push(it.title ? 'Story: ' + it.title : it.name + (LOOKS.indexOf(it) >= 0 ? ' look' : '')); }
+		});
+
 		var key = this.bestKey(this.mode), prev = this.bestFor(this.mode);
 		var isBest = this.score > prev;
 		if (isBest) { store(key, String(this.score)); }
 		// Let the crash play out before the card slides in.
 		setTimeout(function () {
-			if (self.state === 'over') { self.showOverlay('over', { isBest: isBest && self.score > 0 }); }
+			self.lastOver = { isBest: isBest && self.score > 0, unlocked: unlocked };
+			if (self.state === 'over') { self.showOverlay('over', self.lastOver); }
 		}, reducedMotion ? 0 : 420);
 	};
 
@@ -611,6 +848,7 @@
 				this.pop = 1;
 				snd('point', this.score);
 				if (window.FBAudio) { FBAudio.setIntensity(this.score); }
+				if (CAPTIONS[this.score]) { this.caption(CAPTIONS[this.score]); }
 			}
 			if (this.hits(pipe)) { this.die('pipe'); return; }
 		}
@@ -644,6 +882,7 @@
 		this.last = now;
 		this.update(dt);
 		this.draw();
+		if (this.previewCanvas && this.overlayName === 'wardrobe') { this.drawPreview(now); }
 	};
 
 	Game.prototype.hills = function (ctx, offset, base, amp, freq, color, alpha) {
@@ -758,7 +997,6 @@
 	};
 
 	// Wing beat: up, mid, down, mid – one cycle per flap, then glide with wings level.
-	var BEAT = ['up', 'mid', 'down', 'mid'];
 	Game.prototype.wingPose = function () {
 		var b = this.bird;
 		if (this.state === 'over') { return 'down'; }
