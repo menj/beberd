@@ -222,6 +222,9 @@ function fb_input_name(string $field): string
             <div class="fb-field"><span class="fb-label">Sound</span>
                 <label class="fb-check"><input type="checkbox" name="<?= fb_input_name('sound') ?>" value="1" <?= $s['sound'] ? 'checked' : '' ?>> On by default (players can mute with M)</label>
                 <label class="fb-check"><input type="checkbox" name="<?= fb_input_name('music') ?>" value="1" <?= $s['music'] ? 'checked' : '' ?>> Background music (speeds up as the score climbs)</label></div>
+            <div class="fb-field"><span class="fb-label">Admin cheat</span>
+                <label class="fb-check"><input type="checkbox" name="<?= fb_input_name('admin_cheat') ?>" value="1" <?= $s['admin_cheat'] ? 'checked' : '' ?>> Enable god mode for logged-in admins</label>
+                <p class="fb-muted">While logged in here, type <code>IDDQD</code> on the game page (or use the shield button) to toggle god mode. Visitors never get it, and god-mode runs are not recorded in scores, medals or unlocks.</p></div>
             <?php $close();
 
         elseif ($tab === 'scores'):

@@ -32,6 +32,7 @@
 
 	var ICONS = {
 		pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+		shield: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3z"/></svg>',
 		sound: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>',
 		muted: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>'
 	};
@@ -152,6 +153,7 @@
 		this.mode = 'classic';
 		this.day = CFG.today || new Date().toISOString().slice(0, 10);
 		this.shake = 0; this.flash = 0; this.pop = 0; this.freeze = 0;
+		this.god = false; this.cheated = false; this.godT = 0;
 		var storedMute = store('fb_muted');
 		this.muted = storedMute === null ? CFG.sound === false : storedMute === '1';
 		if (window.FBAudio) {
@@ -199,6 +201,15 @@
 		this.pauseBtn.setAttribute('aria-label', T.pause);
 		this.muteBtn = el('button', 'fb-btn-icon');
 		this.muteBtn.type = 'button';
+		if (CFG.admin) {
+			// Admin only (set by the server from the admin session): god-mode toggle.
+			this.godBtn = el('button', 'fb-btn-icon fb-god-btn');
+			this.godBtn.type = 'button';
+			this.godBtn.innerHTML = ICONS.shield;
+			this.godBtn.setAttribute('aria-label', 'God mode (admin)');
+			this.godBtn.setAttribute('aria-pressed', 'false');
+			actions.appendChild(this.godBtn);
+		}
 		actions.appendChild(this.pauseBtn);
 		actions.appendChild(this.muteBtn);
 		hud.appendChild(actions);
@@ -311,6 +322,16 @@
 			primary = el('button', 'fb-btn', T.resume);
 			primary.type = 'button';
 			primary.addEventListener('click', function () { self.resume(); });
+			c.appendChild(primary);
+		} else if (name === 'over' && data && data.cheated) {
+			// God-mode run: nothing is saved, so no medal, form or leaderboard.
+			c.appendChild(el('span', 'fb-tag', 'God mode run'));
+			c.appendChild(el('h2', 'fb-title', T.gameOver));
+			c.appendChild(this.stats(this.score, null));
+			c.appendChild(el('p', 'fb-sub', 'Cheat runs are not recorded.'));
+			primary = el('button', 'fb-btn', T.playAgain);
+			primary.type = 'button';
+			primary.addEventListener('click', function () { self.begin(); });
 			c.appendChild(primary);
 		} else if (name === 'over') {
 			var daily = this.mode === 'daily';
@@ -601,12 +622,14 @@
 		// Keep the page from scrolling / zooming / selecting while playing on touch devices.
 		this.stage.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 		this.pauseBtn.addEventListener('click', function () { self.togglePause(); });
+		if (this.godBtn) { this.godBtn.addEventListener('click', function () { self.toggleGod(); }); }
 		this.muteBtn.addEventListener('click', function () { self.toggleMute(); });
 
 		this.root.addEventListener('pointerenter', function () { self.hover = true; });
 		this.root.addEventListener('pointerleave', function () { self.hover = false; });
 
 		var single = document.querySelectorAll('.fb-game').length === 1;
+		var cheatBuf = '';
 		document.addEventListener('keydown', function (e) {
 			if (e.metaKey || e.ctrlKey || e.altKey) { return; }
 			var t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
@@ -616,6 +639,10 @@
 			var active = self.state === 'playing' || self.hover || self.root.contains(document.activeElement) ||
 				(single && (document.activeElement === document.body || !document.activeElement));
 			if (!active) { return; }
+			if (CFG.admin && e.key && e.key.length === 1) {
+				cheatBuf = (cheatBuf + e.key.toLowerCase()).slice(-5);
+				if (cheatBuf === 'iddqd') { cheatBuf = ''; self.toggleGod(); return; }
+			}
 			switch (e.code) {
 				case 'Space': case 'ArrowUp': case 'KeyW':
 					if (onButton && self.state !== 'playing') { return; } // let Space activate a focused button
@@ -668,6 +695,7 @@
 		this.bird = { y: H * 0.42, vy: 0, rot: 0, anim: 99, sq: 0 };
 		this.rng = this.mode === 'daily' ? mulberry32(seedFrom('flying-bird:' + this.day)) : Math.random;
 		this.shake = this.flash = this.pop = this.freeze = 0;
+		this.cheated = this.god; // a run that starts in god mode is never recorded
 		this.pipes = [];
 		this.particles = [];
 		this.score = 0;
@@ -739,6 +767,19 @@
 		}
 	};
 
+	// Admin-only god mode: you can't die. The run is flagged and never recorded.
+	Game.prototype.toggleGod = function () {
+		if (!CFG.admin) { return; }
+		this.god = !this.god;
+		if (this.god) { this.cheated = true; }
+		if (this.godBtn) {
+			this.godBtn.classList.toggle('is-on', this.god);
+			this.godBtn.setAttribute('aria-pressed', this.god ? 'true' : 'false');
+		}
+		this.stage.classList.toggle('is-god', this.god);
+		this.caption(this.god ? 'God mode on \u00b7 this run won\u2019t be recorded' : 'God mode off');
+	};
+
 	Game.prototype.die = function (reason) {
 		var self = this;
 		this.state = 'over';
@@ -754,6 +795,16 @@
 				this.particles.push({ x: BIRD_X, y: this.bird.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, life: 1, r: 2 + Math.random() * 3 });
 			}
 		}
+		if (this.cheated) {
+			// God-mode runs never touch scores, medals, bests or unlocks.
+			var self0 = this;
+			setTimeout(function () {
+				self0.lastOver = { cheated: true };
+				if (self0.state === 'over') { self0.showOverlay('over', self0.lastOver); }
+			}, reducedMotion ? 0 : 420);
+			return;
+		}
+
 		// Lifetime progress drives the wardrobe unlocks.
 		var before = progress();
 		var all = LOOKS.concat(HATS, CHAPTERS).filter(function (it) { return it.need; });
@@ -837,6 +888,13 @@
 		b.rot = Math.max(-0.4, Math.min(0.8, b.vy / 650));
 		b.anim += dt;
 		if (b.y < BIRD_R) { b.y = BIRD_R; b.vy = 0; }
+		if (this.god && !reducedMotion) {
+			this.godT += dt;
+			if (this.godT > 0.04) {
+				this.godT = 0;
+				this.particles.push({ x: BIRD_X - 22, y: b.y + 4 + (Math.random() - 0.5) * 8, vx: -90, vy: 0, life: 0.5, r: 3, puff: true, hue: (this.distance * 1.5) % 360 });
+			}
+		}
 
 		for (i = this.pipes.length - 1; i >= 0; i--) {
 			var pipe = this.pipes[i];
@@ -850,14 +908,14 @@
 				if (window.FBAudio) { FBAudio.setIntensity(this.score); }
 				if (CAPTIONS[this.score]) { this.caption(CAPTIONS[this.score]); }
 			}
-			if (this.hits(pipe)) { this.die('pipe'); return; }
+			if (!this.god && this.hits(pipe)) { this.die('pipe'); return; }
 		}
 		var lastPipe = this.pipes[this.pipes.length - 1];
 		if (!lastPipe || lastPipe.x < W - PIPE_SPACING + 40) { this.spawnPipe(W + 40); }
 
 		if (b.y + BIRD_R >= H - GROUND) {
 			b.y = H - GROUND - BIRD_R;
-			this.die('ground');
+			if (this.god) { b.vy = 0; } else { this.die('ground'); }
 		}
 	};
 
@@ -940,7 +998,7 @@
 		for (i = 0; i < this.particles.length; i++) {
 			var q = this.particles[i];
 			ctx.globalAlpha = Math.max(0, Math.min(1, q.life));
-			ctx.fillStyle = q.puff ? '#ffffff' : P.bird;
+			ctx.fillStyle = q.hue !== undefined ? 'hsl(' + Math.round(q.hue) + ',90%,60%)' : (q.puff ? '#ffffff' : P.bird);
 			ctx.fillRect(Math.round(q.x - q.r), Math.round(q.y - q.r), q.r * 2, q.r * 2);
 		}
 		ctx.globalAlpha = 1;
@@ -1013,6 +1071,7 @@
 		var rot = Math.round(b.rot * 8) / 8; // stepped tilt keeps the pixels crisp
 		ctx.save();
 		ctx.translate(BIRD_X, b.y);
+		if (this.god) { ctx.globalAlpha = 0.7 + 0.15 * Math.sin(performance.now() / 120); }
 		ctx.rotate(rot);
 		ctx.scale(1 - 0.12 * b.sq, 1 + 0.18 * b.sq); // squash & stretch on flap
 		ctx.imageSmoothingEnabled = false;

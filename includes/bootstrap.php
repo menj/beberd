@@ -80,6 +80,13 @@ function fb_csrf_field(): string
     return '<input type="hidden" name="csrf" value="' . fb_h(fb_csrf_token()) . '">';
 }
 
+/** True when the visitor is logged in to the admin panel (server-side session). */
+function fb_is_admin(): bool
+{
+    fb_session();
+    return !empty($_SESSION['uid']);
+}
+
 function fb_security_headers(): void
 {
     header('X-Content-Type-Options: nosniff');

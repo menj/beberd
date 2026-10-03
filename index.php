@@ -20,12 +20,19 @@ if (is_string($q) && isset(fb_difficulties()[$q])) {
 $scheme = $s['scheme'];
 $style  = $scheme === 'custom' ? fb_custom_style($s['custom']) : '';
 
+// Admin-only cheat: decided on the server from the admin session, never from the URL.
+$isAdmin = $hasDb && !empty($s['admin_cheat']) && fb_is_admin();
+if ($isAdmin) {
+    header('Cache-Control: no-store'); // keep the admin-enabled page out of shared caches
+}
+
 $config = [
     'apiUrl'      => 'api.php',
     'csrf'        => $hasDb ? fb_csrf_token() : '',
     'leaderboard' => $hasDb && $s['leaderboard'],
     'showBoard'   => $hasDb && $s['leaderboard'],
     'sound'       => (bool) $s['sound'],
+    'admin'       => $isAdmin,
     'music'       => (bool) $s['music'],
     'today'       => fb_today(),
     'startMode'   => ($_GET['mode'] ?? '') === 'daily' ? 'daily' : 'classic', // app shortcut / deep link

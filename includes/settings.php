@@ -66,6 +66,7 @@ function fb_setting_defaults(): array
         'difficulty'       => 'normal',
         'sound'            => 1,
         'music'            => 1,
+        'admin_cheat'      => 1,
     ];
 }
 
@@ -118,6 +119,7 @@ function fb_settings_sanitize(string $tab, array $in, array $current): array
             $current['difficulty'] = isset(fb_difficulties()[$d]) ? $d : 'normal';
             $current['sound']      = empty($in['sound']) ? 0 : 1;
             $current['music']      = empty($in['music']) ? 0 : 1;
+            $current['admin_cheat'] = empty($in['admin_cheat']) ? 0 : 1;
             break;
     }
     return $current;

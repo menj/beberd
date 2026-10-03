@@ -5,7 +5,7 @@
  * - api.php, admin.php and install.php are never cached.
  * Bump VERSION to force clients to refresh their cache.
  */
-const VERSION = 'fb-v3';
+const VERSION = 'fb-v4';
 const SHELL = [
 	'./', 'css/game.css', 'css/site.css', 'js/game.js', 'js/sprite.js', 'js/audio.js', 'js/pwa.js',
 	'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'
@@ -37,8 +37,10 @@ self.addEventListener('fetch', (event) => {
 		event.respondWith(
 			fetch(req)
 				.then((res) => {
-					const copy = res.clone();
-					caches.open(VERSION).then((c) => c.put('./', copy));
+					if (!/no-store/.test(res.headers.get('Cache-Control') || '')) {
+						const copy = res.clone();
+						caches.open(VERSION).then((c) => c.put('./', copy));
+					}
 					return res;
 				})
 				.catch(() => caches.match('./').then((hit) => hit || caches.match(req)))
