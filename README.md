@@ -69,6 +69,18 @@ The game is installable and **works offline**. Serve it over HTTPS (or `localhos
 leaderboard, admin and installer always go to the network. Bump `VERSION` in `sw.js` when you ship changes to
 force clients to refresh. The Daily challenge is also available as an app shortcut.
 
+## Admin cheat (god mode)
+
+Log in at `/admin.php`, open the game, and type **`IDDQD`** (or tap the shield button in the top bar) to toggle god mode:
+you can't die, Hamilton turns ghostly and leaves a rainbow trail. It can be switched off in **Gameplay → Admin cheat**.
+
+* Only available while you are logged in as admin. The server decides this from your session; there is no URL flag or
+  public code, and visitors never see the button.
+* God-mode runs are **never recorded**: no leaderboard entry, medals, bests, story or wardrobe progress.
+* It needs the database (that is where the admin account lives).
+* It is a client-side convenience, not a security boundary: someone who edits the page's JavaScript could change their own
+  local game, which is why scores are also sanity-checked on the server.
+
 ## Controls
 
 | | |

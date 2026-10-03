@@ -311,3 +311,14 @@
 	.fb-medal { animation: none; }
 	.fb-toast { transition: none; }
 }
+
+/* ---- Admin god mode ---- */
+.fb-god-btn.is-on { color: var(--fb-surface); background: var(--fb-accent); }
+.fb-stage.is-god::after {
+	content: "GOD MODE";
+	position: absolute; top: 14px; left: 14px;
+	padding: 5px 10px;
+	font-size: .68em; font-weight: 800; letter-spacing: .12em;
+	color: var(--fb-surface); background: var(--fb-accent);
+	border-radius: 999px; pointer-events: none; z-index: 2;
+}
