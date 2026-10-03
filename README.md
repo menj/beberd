@@ -42,8 +42,7 @@ working and only the leaderboard is hidden.
 | PostgreSQL | `pdo_pgsql` | Tested on PostgreSQL 16 |
 | SQLite | `pdo_sqlite` | SQLite 3.24+ (upserts). The file defaults to `data/flying-bird.sqlite`. Prefer a path outside your web root when you can |
 
-Also requires PHP 7.4+ with `mbstring`. All three engines run the same test suite (schema, scores, daily boards, paging,
-moderation, and the v1 to v2 upgrade).
+Also requires PHP 7.4+ with `mbstring`.
 
 ## Admin panel
 
