@@ -1,0 +1,250 @@
+/*
+ * Flying Bird – front-end styles.
+ * Colour schemes are plain CSS custom properties, so they can be overridden
+ * by a theme, by the Custom scheme in settings, or via the shortcode.
+ */
+
+.fb-game {
+	--fb-bg1: #cfe8ff;
+	--fb-bg2: #fff1de;
+	--fb-hill: #b9d4c3;
+	--fb-pipe: #3d8b6e;
+	--fb-bird: #ffd23f;
+	--fb-beak: #ff6b35;
+	--fb-accent: #2f6fed;
+	--fb-ink: #14213d;
+	--fb-surface: #ffffff;
+	--fb-radius: 20px;
+	--fb-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.fb-game[data-scheme="midnight"] {
+	--fb-bg1: #0b1026; --fb-bg2: #232b5a; --fb-hill: #1b2350; --fb-pipe: #5eead4;
+	--fb-bird: #fbbf24; --fb-beak: #fb7185; --fb-accent: #818cf8; --fb-ink: #e8ecff; --fb-surface: #141a3a;
+}
+.fb-game[data-scheme="mono"] {
+	--fb-bg1: #f4f4f5; --fb-bg2: #e4e4e7; --fb-hill: #d4d4d8; --fb-pipe: #27272a;
+	--fb-bird: #d4d4d8; --fb-beak: #71717a; --fb-accent: #18181b; --fb-ink: #18181b; --fb-surface: #ffffff;
+}
+.fb-game[data-scheme="forest"] {
+	--fb-bg1: #d9f0e0; --fb-bg2: #f3f9ec; --fb-hill: #9fcfae; --fb-pipe: #2d6a4f;
+	--fb-bird: #e76f51; --fb-beak: #ffd166; --fb-accent: #2d6a4f; --fb-ink: #1b4332; --fb-surface: #ffffff;
+}
+.fb-game[data-scheme="sunset"] {
+	--fb-bg1: #3b1f4a; --fb-bg2: #ff8a65; --fb-hill: #6a2c5a; --fb-pipe: #2b1b3d;
+	--fb-bird: #ffd166; --fb-beak: #ff6b6b; --fb-accent: #ff6b6b; --fb-ink: #fff5ee; --fb-surface: #3b1f4a;
+}
+@media (prefers-color-scheme: dark) {
+	.fb-game[data-scheme="auto"] {
+		--fb-bg1: #0b1026; --fb-bg2: #232b5a; --fb-hill: #1b2350; --fb-pipe: #5eead4;
+		--fb-bird: #fbbf24; --fb-beak: #fb7185; --fb-accent: #818cf8; --fb-ink: #e8ecff; --fb-surface: #141a3a;
+	}
+}
+
+/* ---- Layout ---- */
+.fb-game {
+	--fb-max: 440px;
+	--fb-chrome: 96px; /* vertical space reserved for page padding + hint */
+	position: relative;
+	box-sizing: border-box;
+	/* Fit the viewport in both directions: never wider than the container,
+	   never taller than the screen (stage ratio is 21:32). */
+	width: min(100%, var(--fb-max));
+	width: min(100%, var(--fb-max), calc((100vh - var(--fb-chrome)) * 0.656));
+	width: min(100%, var(--fb-max), calc((100dvh - var(--fb-chrome)) * 0.656));
+	margin: 0 auto;
+	container-type: inline-size;
+	font-family: var(--fb-font);
+	color: var(--fb-ink);
+	-webkit-user-select: none;
+	user-select: none;
+}
+.fb-game *, .fb-game *::before, .fb-game *::after { box-sizing: inherit; }
+
+.fb-stage {
+	position: relative;
+	aspect-ratio: 21 / 32;
+	border-radius: var(--fb-radius);
+	overflow: hidden;
+	background: var(--fb-bg1);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 12px 32px -8px rgba(0, 0, 0, .25);
+	touch-action: none;
+	-webkit-touch-callout: none;
+	-webkit-tap-highlight-color: transparent;
+	outline: none;
+	/* UI scales with the stage so cards read well from phone to desktop. */
+	font-size: 16px;
+	font-size: clamp(11px, 3.8cqw, 19px);
+}
+.fb-stage:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--fb-accent) 55%, transparent), 0 12px 32px -8px rgba(0, 0, 0, .25); }
+.fb-canvas { display: block; width: 100%; height: 100%; }
+
+/* The hint sits on the page, not the stage, so it follows the page colours. */
+.fb-hint {
+	color: var(--pg-ink, var(--fb-ink));
+	margin: .9em 0 0;
+	text-align: center;
+	font-size: .8rem;
+	letter-spacing: .02em;
+	opacity: .6;
+}
+.fb-hint kbd {
+	font: inherit;
+	font-weight: 600;
+	padding: .05em .4em;
+	border: 1px solid currentColor;
+	border-radius: 4px;
+	opacity: .85;
+}
+
+/* ---- HUD ---- */
+.fb-hud {
+	position: absolute;
+	top: 14px; left: 14px; right: 14px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	pointer-events: none;
+	z-index: 3; /* above the overlays so sound stays reachable on every screen */
+}
+.fb-btn-icon[hidden] { display: none; }
+.fb-hud .fb-btn-icon { pointer-events: auto; }
+
+.fb-btn-icon {
+	width: 40px; height: 40px;
+	display: grid; place-items: center;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--fb-surface) 78%, transparent);
+	color: var(--fb-ink);
+	cursor: pointer;
+	backdrop-filter: blur(6px);
+	transition: transform .15s ease, background .15s ease;
+}
+.fb-btn-icon:hover { transform: scale(1.06); background: var(--fb-surface); }
+.fb-btn-icon:focus-visible { outline: 2px solid var(--fb-accent); outline-offset: 2px; }
+.fb-btn-icon svg { width: 18px; height: 18px; fill: currentColor; }
+.fb-hud-actions { display: flex; gap: 8px; }
+
+/* ---- Overlays ---- */
+.fb-overlay {
+	position: absolute; inset: 0;
+	display: flex; align-items: center; justify-content: center;
+	padding: 20px;
+	background: color-mix(in srgb, var(--fb-bg1) 35%, transparent);
+	backdrop-filter: blur(3px);
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none; /* a closing overlay must never swallow taps */
+	transition: opacity .25s ease, visibility .25s;
+}
+.fb-overlay.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
+/* Start screen: dock the card low, keep the sky (and bird) clear. */
+.fb-overlay--dock { align-items: flex-end; padding-bottom: 96px; background: none; backdrop-filter: none; }
+
+.fb-card {
+	width: 100%;
+	max-width: 320px;
+	max-height: 100%;
+	overflow: auto;
+	padding: 28px 24px 24px;
+	text-align: center;
+	background: var(--fb-surface);
+	border-radius: var(--fb-radius);
+	box-shadow: 0 20px 40px -12px rgba(0, 0, 0, .3);
+	transform: translateY(8px) scale(.98);
+	transition: transform .25s ease;
+}
+.fb-overlay.is-open .fb-card { transform: none; }
+
+.fb-title { margin: 0 0 4px; font-size: 1.7em; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; color: var(--fb-ink); }
+.fb-sub { margin: 0 0 20px; font-size: .9em; opacity: .65; }
+
+.fb-stats { display: flex; justify-content: center; gap: 28px; margin: 14px 0 20px; }
+.fb-stat b { display: block; font-size: 2.2em; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.fb-stat span { font-size: .7em; text-transform: uppercase; letter-spacing: .1em; opacity: .55; }
+.fb-badge {
+	display: inline-block; margin-bottom: 4px; padding: .2em .8em;
+	font-size: .72em; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+	color: var(--fb-surface); background: var(--fb-accent); border-radius: 999px;
+}
+
+.fb-btn {
+	display: block; width: 100%;
+	padding: 13px 16px;
+	font: inherit; font-weight: 600; font-size: .95em;
+	color: var(--fb-surface);
+	background: var(--fb-accent);
+	border: 0; border-radius: 12px;
+	cursor: pointer;
+	transition: transform .15s ease, filter .15s ease;
+}
+.fb-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.fb-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--fb-accent) 40%, transparent); outline-offset: 2px; }
+.fb-btn[disabled] { opacity: .6; cursor: default; transform: none; }
+.fb-btn + .fb-btn, .fb-form + .fb-btn { margin-top: 10px; }
+.fb-btn-ghost { color: var(--fb-ink); background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fb-ink) 22%, transparent); }
+
+.fb-form { display: flex; gap: 8px; margin-bottom: 4px; }
+.fb-form input {
+	flex: 1; min-width: 0;
+	padding: 11px 12px;
+	font: inherit; font-size: .9em;
+	color: var(--fb-ink);
+	background: transparent;
+	border: 1.5px solid color-mix(in srgb, var(--fb-ink) 22%, transparent);
+	border-radius: 12px;
+}
+.fb-form input:focus { outline: none; border-color: var(--fb-accent); }
+.fb-form .fb-btn { width: auto; padding: 11px 16px; margin: 0; }
+.fb-status { min-height: 1.2em; margin: 6px 0 0; font-size: .78em; opacity: .7; }
+
+/* ---- Leaderboard ---- */
+.fb-board { margin: 18px 0 0; padding: 0; list-style: none; text-align: left; counter-reset: fb; }
+.fb-board h3 { margin: 0 0 8px; font-size: .7em; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; opacity: .55; }
+.fb-board li {
+	display: flex; gap: 10px; align-items: baseline;
+	padding: 7px 0;
+	font-size: .88em;
+	border-top: 1px solid color-mix(in srgb, var(--fb-ink) 10%, transparent);
+	counter-incement: fb;
+}
+.fb-board li::before { content: counter(fb); width: 1.4em; font-size: .75em; opacity: .45; font-variant-numeric: tabular-nums; }
+.fb-board li span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-board li b { font-variant-numeric: tabular-nums; }
+.fb-board li.is-you { color: var(--fb-accent); font-weight: 600; }
+.fb-board-empty { font-size: .85em; opacity: .55; text-align: center; padding: 8px 0 0; }
+
+/* ---- Touch devices: show tap hint, bigger targets ---- */
+.fb-tap { display: none; }
+.fb-btn, .fb-btn-icon, .fb-form input { touch-action: manipulation; }
+@media (hover: none) and (pointer: coarse) {
+	.fb-keys { display: none; }
+	.fb-tap { display: inline; }
+	.fb-btn-icon { width: 46px; height: 46px; }
+	.fb-btn-icon svg { width: 20px; height: 20px; }
+	.fb-btn { padding: 15px 16px; }
+}
+
+/* ---- Tablet and up: a little larger ---- */
+@media (min-width: 768px) {
+	.fb-game { --fb-max: 520px; }
+}
+
+/* ---- Short screens (phones in landscape): drop the hint, reclaim space ---- */
+@media (max-height: 520px) {
+	.fb-game { --fb-chrome: 24px; }
+	.fb-hint { display: none; }
+	.fb-card { padding: 16px 16px 14px; }
+	.fb-title { font-size: 1.3em; }
+	.fb-sub { margin-bottom: 10px; }
+	.fb-stats { margin: 6px 0 12px; }
+	.fb-stat b { font-size: 1.6em; }
+	.fb-overlay--dock { padding-bottom: 20px; }
+	.fb-overlay--dock .fb-board { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.fb-overlay, .fb-card, .fb-btn, .fb-btn-icon { transition: none; }
+}
