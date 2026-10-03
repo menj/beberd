@@ -1,0 +1,52 @@
+/* Page chrome shared by the game page, installer and admin. */
+:root {
+	--pg-bg: #f5f6f8; --pg-card: #fff; --pg-ink: #14213d; --pg-muted: #6b7280;
+	--pg-line: #e4e6eb; --pg-accent: #2f6fed; --pg-bad: #c0392b; --pg-ok: #1e7f4f;
+}
+@media (prefers-color-scheme: dark) {
+	:root { --pg-bg: #0a0d1c; --pg-card: #141a3a; --pg-ink: #e8ecff; --pg-muted: #9aa3c7; --pg-line: #26305c; --pg-accent: #818cf8; --pg-bad: #ff8a80; --pg-ok: #5eead4; }
+}
+*, *::before, *::after { box-sizing: border-box; }
+.fb-body { margin: 0; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--pg-bg); color: var(--pg-ink); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+.fb-shell { flex: 1; display: grid; place-items: center; padding: 16px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left)); }
+.fb-shell.fb-top { place-items: start center; }
+.fb-footer { padding: 8px 16px max(12px, env(safe-area-inset-bottom)); text-align: center; font-size: .8rem; }
+@media (max-height: 520px) { .fb-footer { display: none; } .fb-shell { padding-block: 8px; } }
+.fb-footer a, .fb-links a { color: var(--pg-muted); text-decoration: none; }
+.fb-footer a:hover, .fb-links a:hover { color: var(--pg-ink); }
+
+.fb-panel { width: 100%; max-width: 420px; padding: 28px; background: var(--pg-card); border: 1px solid var(--pg-line); border-radius: 16px; }
+.fb-panel.fb-wide { max-width: 860px; }
+.fb-h1 { margin: 0 0 6px; font-size: 1.5rem; letter-spacing: -.02em; }
+.fb-h2 { margin: 22px 0 10px; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--pg-muted); }
+.fb-muted { color: var(--pg-muted); font-size: .9rem; }
+.fb-ok { color: var(--pg-ok); font-weight: 600; }
+code { font-size: .85em; padding: .1em .35em; border-radius: 4px; background: color-mix(in srgb, var(--pg-ink) 8%, transparent); }
+
+.fb-form-stack { display: grid; gap: 14px; }
+.fb-form-stack label, .fb-field > label, .fb-label { display: grid; gap: 6px; font-size: .85rem; font-weight: 600; }
+.fb-label { display: block; margin-bottom: 6px; }
+.fb-panel input[type="text"], .fb-panel input[type="password"], .fb-panel input[type="number"], .fb-panel input:not([type]) {
+	width: 100%; padding: 10px 12px; font: inherit; color: var(--pg-ink); background: transparent;
+	border: 1.5px solid var(--pg-line); border-radius: 10px;
+}
+.fb-panel input:focus-visible { outline: none; border-color: var(--pg-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pg-accent) 25%, transparent); }
+
+.fb-btn { display: block; width: 100%; padding: 12px 16px; font: inherit; font-weight: 600; text-align: center; text-decoration: none; color: #fff; background: var(--pg-accent); border: 0; border-radius: 10px; cursor: pointer; }
+.fb-btn:hover { filter: brightness(1.08); }
+.fb-btn[disabled] { opacity: .5; cursor: not-allowed; }
+.fb-btn-auto { display: inline-block; width: auto; }
+.fb-btn-ghost { color: var(--pg-ink); background: transparent; box-shadow: inset 0 0 0 1.5px var(--pg-line); }
+p > .fb-btn { margin-top: 6px; }
+
+.fb-alert { margin: 14px 0; padding: 10px 14px; font-size: .88rem; color: var(--pg-bad); background: color-mix(in srgb, var(--pg-bad) 10%, transparent); border-radius: 10px; }
+.fb-alert-ok { color: var(--pg-ok); background: color-mix(in srgb, var(--pg-ok) 10%, transparent); }
+.fb-checks { margin: 16px 0; padding: 0; list-style: none; font-size: .85rem; }
+.fb-checks li::before { content: "✓"; display: inline-block; width: 1.4em; font-weight: 700; }
+.fb-checks .is-ok::before { color: var(--pg-ok); }
+.fb-checks .is-bad::before { content: "✕"; color: var(--pg-bad); }
+
+@media (max-width: 520px) {
+	.fb-shell { padding-inline: 8px; }
+	.fb-panel { padding: 20px 16px; border-radius: 12px; }
+}
