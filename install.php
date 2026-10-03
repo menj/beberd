@@ -19,8 +19,8 @@ $available = array_keys(array_filter($drivers, static fn ($d) => extension_loade
 $values = [
     'db_driver' => $available[0] ?? 'mysql',
     'db_host' => 'localhost', 'db_name' => 'flying_bird', 'db_user' => '', 'db_prefix' => 'fb_',
-    'db_path' => 'data/flying-bird.sqlite',
-    'site_title' => 'Flying Bird', 'admin_user' => 'admin',
+    'db_path' => 'data/beberd.sqlite',
+    'site_title' => FB_APP_NAME, 'admin_user' => 'admin',
 ];
 
 $checks = [
@@ -107,7 +107,7 @@ if (fb_installed()) {
 
             // 3. Seed settings + admin account.
             $settings = fb_setting_defaults();
-            $settings['site_title'] = $values['site_title'] !== '' ? mb_substr(strip_tags($values['site_title']), 0, 60) : 'Flying Bird';
+            $settings['site_title'] = $values['site_title'] !== '' ? mb_substr(strip_tags($values['site_title']), 0, 60) : FB_APP_NAME;
             fb_setting_write($pdo, 'settings', json_encode($settings));
             fb_setting_write($pdo, 'db_version', (string) FB_DB_VERSION);
             $pdo->prepare('INSERT INTO ' . fb_table('users') . ' (username, password_hash, created_at) VALUES (?,?,?)')
@@ -146,13 +146,14 @@ if (fb_installed()) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
-    <title>Install · Flying Bird</title>
+    <?= fb_base_tag() ?>
+    <title>Install · <?= fb_h(FB_APP_NAME) ?></title>
     <link rel="stylesheet" href="css/site.css">
 </head>
 <body class="fb-body">
 <main class="fb-shell">
     <div class="fb-panel fb-narrow">
-        <h1 class="fb-h1">Flying Bird</h1>
+        <h1 class="fb-h1"><?= fb_h(FB_APP_NAME) ?></h1>
 
         <?php if ($state === 'locked'): ?>
             <p class="fb-muted">Already installed. To run the installer again, delete <code>config.php</code>.</p>
@@ -165,7 +166,7 @@ if (fb_installed()) {
             <p class="fb-muted">For safety you may delete <code>install.php</code> now.</p>
 
         <?php else: ?>
-            <p class="fb-muted">One-minute set-up. Choose a database engine and Flying Bird will create the tables for you. No SQL import needed. The game also works without any database.</p>
+            <p class="fb-muted">One-minute set-up. Choose a database engine and <?= fb_h(FB_APP_NAME) ?> will create the tables for you. No SQL import needed. The game also works without any database.</p>
 
             <ul class="fb-checks">
                 <?php foreach ($checks as $label => $ok): ?>

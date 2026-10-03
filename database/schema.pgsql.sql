@@ -1,4 +1,4 @@
--- Flying Bird schema for PostgreSQL. {prefix} is replaced by the installer.
+-- Beberd schema for PostgreSQL. {prefix} is replaced by the installer.
 -- (The mode/day index is created by the migration step in includes/db.php.)
 -- Every statement is idempotent, so this file can be re-run safely.
 

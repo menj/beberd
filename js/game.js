@@ -1,5 +1,5 @@
 /*
- * Flying Bird – front-end game.
+ * Beberd – front-end game.
  * Plain canvas, no dependencies. Reads its config from #fb-config; with no database it keeps scores in the browser.
  */
 (function () {
@@ -9,6 +9,7 @@
 		var node = document.getElementById('fb-config');
 		try { return node ? JSON.parse(node.textContent) : {}; } catch (e) { return {}; }
 	})();
+	var APP = CFG.appName || 'Beberd';
 	var T = Object.assign({
 		play: 'Play', playAgain: 'Play again', resume: 'Resume', best: 'Best', score: 'Score',
 		gameOver: 'Game over', paused: 'Paused', newBest: 'New best!', yourName: 'Your name',
@@ -21,6 +22,7 @@
 	var W = 420, H = 640, GROUND = 64;
 	var BIRD_X = 110, BIRD_R = 15;
 	var GRAVITY = 1500, FLAP = -430, MAX_FALL = 620;
+	var STEP = 1 / 60; // fixed simulation step: the same inputs always give the same run (needed for replays and verification)
 	var PIPE_W = 62, PIPE_SPACING = 224;
 	var DIFFICULTY = {
 		easy:   { gap: 195, speed: 130 },
@@ -200,7 +202,8 @@
 
 	function Game(root) {
 		this.root = root;
-		this.baseDiff = DIFFICULTY[root.getAttribute('data-difficulty')] || DIFFICULTY.normal;
+		this.diffName = DIFFICULTY[root.getAttribute('data-difficulty')] ? root.getAttribute('data-difficulty') : 'normal';
+		this.baseDiff = DIFFICULTY[this.diffName];
 		this.diff = this.baseDiff;
 		this.mode = 'classic';
 		this.day = CFG.today || new Date().toISOString().slice(0, 10);
@@ -240,7 +243,7 @@
 		this.stage = el('div', 'fb-stage');
 		this.stage.tabIndex = 0;
 		this.stage.setAttribute('role', 'application');
-		this.stage.setAttribute('aria-label', 'Flying Bird. Hamilton the bird. ' + T.hint);
+		this.stage.setAttribute('aria-label', APP + '. Hamilton the bird. ' + T.hint);
 
 		this.canvas = el('canvas', 'fb-canvas');
 		this.ctx = this.canvas.getContext('2d');
@@ -344,7 +347,7 @@
 		}
 		var primary;
 		if (name === 'start') {
-			c.appendChild(el('h2', 'fb-title', 'Flying Bird'));
+			c.appendChild(el('h2', 'fb-title', APP));
 			var bestClassic = this.bestFor('classic');
 			c.appendChild(el('p', 'fb-sub', pick(TAGLINES) + (bestClassic ? ' · ' + T.best + ' ' + bestClassic : '')));
 			if (CFG.startMode === 'daily') {
@@ -427,6 +430,11 @@
 			}
 			c.appendChild(btnRow);
 			c.appendChild(this.linkRow());
+			if (CFG.arcadeUrl) {
+				var more = el('a', 'fb-btn fb-btn-link', 'More games \u203a');
+				more.href = CFG.arcadeUrl;
+				c.appendChild(more);
+			}
 			if (CFG.showBoard && CFG.apiUrl) { this.boardInto(c); }
 		}
 		this.overlay.classList.add('is-open');
@@ -649,7 +657,7 @@
 		input.maxLength = 40;
 		input.placeholder = T.yourName;
 		input.setAttribute('aria-label', T.yourName);
-		input.value = store('fb_name') || '';
+		input.value = store('arcade_name') || store('fb_name') || ''; // one name for every game in the arcade
 		var btn = el('button', 'fb-btn', T.save);
 		btn.type = 'submit';
 		form.appendChild(input);
@@ -658,6 +666,7 @@
 			e.preventDefault();
 			var name = input.value.trim();
 			store('fb_name', name);
+			store('arcade_name', name);
 			btn.disabled = true;
 			self.submit(name, status, function (ok) {
 				if (ok) { form.remove(); } else { btn.disabled = false; }
@@ -676,7 +685,7 @@
 			method: 'POST',
 			credentials: 'same-origin',
 			headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CFG.csrf || '' },
-			body: JSON.stringify({ name: name, score: score, duration: Math.round(this.playMs), mode: this.mode, day: this.day })
+			body: JSON.stringify({ name: name, score: score, mode: this.mode, day: this.day, replay: this.replay })
 		}).then(function (r) {
 			return r.json().then(function (j) { return { ok: r.ok, body: j }; });
 		}).then(function (res) {
@@ -777,7 +786,12 @@
 
 	Game.prototype.reset = function () {
 		this.bird = { y: H * 0.42, vy: 0, rot: 0, anim: 99, sq: 0 };
-		this.rng = this.mode === 'daily' ? mulberry32(seedFrom('flying-bird:' + this.day)) : Math.random;
+		// Every run is seeded (classic gets a random seed) so it can be replayed exactly.
+		this.seed = this.mode === 'daily' ? seedFrom('flying-bird:' + this.day) : (this.nextSeed !== undefined ? this.nextSeed : (Math.random() * 4294967296) >>> 0);
+		this.nextSeed = undefined;
+		this.rng = mulberry32(this.seed);
+		this.stepNo = 0; this.flaps = []; this.replay = null;
+		this.ghostTrace = [];
 		this.shake = this.flash = this.pop = this.freeze = 0;
 		this.cheated = this.god; // a run that starts in god mode is never recorded
 		this.coins = 0; this.coinList = []; this.spawned = 0; this.movingPassed = 0; this.goalsHit = [];
@@ -824,6 +838,7 @@
 		}
 		if (this.state !== 'playing') { return; }
 		this.bird.vy = FLAP;
+		this.flaps.push(this.stepNo); // lands before step number stepNo
 		this.bird.anim = 0; // restart the wing-beat cycle
 		this.bird.sq = 1;   // squash & stretch
 		this.puff();
@@ -970,6 +985,13 @@
 			return;
 		}
 
+		// Package the run so the server can re-play it and confirm the score (assisted runs are never submitted).
+		if (!this.assisted) {
+			var deltas = [], prevStep = 0;
+			for (var fi = 0; fi < this.flaps.length; fi++) { deltas.push(this.flaps[fi] - prevStep); prevStep = this.flaps[fi]; }
+			this.replay = { v: 1, seed: this.seed, mode: this.mode, day: this.mode === 'daily' ? this.day : '', difficulty: this.mode === 'daily' ? 'normal' : this.diffName, steps: this.stepNo, flaps: deltas, score: this.score };
+		}
+
 		// Run totals for goals and the coin stat (cheat runs returned above).
 		this.checkGoals(true); // uses today's total *before* this run is added
 		if (!this.assisted) {
@@ -1095,6 +1117,7 @@
 		}
 		if (this.state !== 'playing') { return; }
 
+		this.stepNo++;
 		this.playMs += dt * 1000; // real time, so slow-mo can never make a score look too fast
 		// Power-up timers run in real time; slow-mo then stretches the world's time.
 		this.invuln = Math.max(0, this.invuln - dt);
@@ -1244,10 +1267,14 @@
 	};
 
 	Game.prototype.frame = function (now) {
-		var dt = Math.min((now - this.last) / 1000, 1 / 30);
+		var elapsed = Math.min((now - this.last) / 1000, 0.1);
 		this.last = now;
 		this.pollPad();
-		this.update(dt);
+		// Fixed-step simulation: identical inputs give an identical run on any device or frame rate.
+		this.acc = (this.acc || 0) + elapsed;
+		var n = 0;
+		while (this.acc >= STEP && n < 6) { this.update(STEP); this.acc -= STEP; n++; }
+		if (n === 6) { this.acc = 0; } // very slow device: drop time instead of spiralling
 		this.draw();
 		if (this.previewCanvas && this.overlayName === 'wardrobe') { this.drawPreview(now); }
 	};
@@ -1573,6 +1600,13 @@
 	};
 
 	function init() {
+		if (CFG.arcadeUrl && !document.querySelector('.fb-arcade')) { // "back to the arcade" link when hosted in a hub
+			var back = document.createElement('a');
+			back.className = 'fb-arcade';
+			back.href = CFG.arcadeUrl;
+			back.textContent = '\u2039 Arcade';
+			document.body.appendChild(back);
+		}
 		var nodes = document.querySelectorAll('.fb-game');
 		for (var i = 0; i < nodes.length; i++) {
 			if (!nodes[i].__fb) { nodes[i].__fb = new Game(nodes[i]); }

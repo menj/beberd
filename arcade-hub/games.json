@@ -1,0 +1,6 @@
+{
+  "title": "Arcade",
+  "subtitle": "Pick a game. No sign-up, no fuss.",
+  "games": ["beberd", "pixel-run"],
+  "comingSoon": 1
+}

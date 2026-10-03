@@ -1,5 +1,5 @@
 /*
- * Flying Bird – pixel-art bird sprite.
+ * Beberd – pixel-art bird sprite.
  * Frames are drawn from small character grids and tinted from the active
  * colour scheme, so the bird follows light/dark/custom palettes.
  *

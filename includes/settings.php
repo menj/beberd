@@ -56,9 +56,11 @@ function fb_tabs(): array
 function fb_setting_defaults(): array
 {
     return [
-        'site_title'       => 'Flying Bird',
+        'site_title'       => FB_APP_NAME,
         'leaderboard'      => 1,
         'leaderboard_size' => 10,
+        'arcade_url'       => '',
+        'public_url'       => '',
         'scheme'           => 'auto',
         'custom'           => [
             'bg1' => '#cfe8ff', 'bg2' => '#fff1de', 'hill' => '#b9d4c3', 'pipe' => '#3d8b6e',
@@ -82,6 +84,7 @@ function fb_settings(bool $refresh = false): array
             $saved = $raw ? json_decode($raw, true) : [];
         }
         $cache = array_merge($d, is_array($saved) ? $saved : []);
+        if ($cache['site_title'] === 'Flying Bird') { $cache['site_title'] = FB_APP_NAME; } // the old default name
         $cache['custom'] = array_merge($d['custom'], is_array($cache['custom']) ? $cache['custom'] : []);
     }
     return $cache;
@@ -99,9 +102,11 @@ function fb_settings_sanitize(string $tab, array $in, array $current): array
     switch ($tab) {
         case 'general':
             $title = trim(preg_replace('/\s+/', ' ', strip_tags((string) ($in['site_title'] ?? ''))));
-            $current['site_title']       = $title !== '' ? mb_substr($title, 0, 60) : 'Flying Bird';
+            $current['site_title']       = $title !== '' ? mb_substr($title, 0, 60) : FB_APP_NAME;
             $current['leaderboard']      = empty($in['leaderboard']) ? 0 : 1;
             $current['leaderboard_size'] = max(3, min(50, (int) ($in['leaderboard_size'] ?? 10)));
+            $current['arcade_url']       = fb_safe_url($in['arcade_url'] ?? '');
+            $current['public_url']       = fb_safe_url($in['public_url'] ?? '');
             break;
 
         case 'appearance':

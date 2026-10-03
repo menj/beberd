@@ -127,6 +127,7 @@ function fb_input_name(string $field): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
+    <?= fb_base_tag() ?>
     <title>Settings · <?= fb_h($s['site_title']) ?></title>
     <meta name="color-scheme" content="light dark">
     <link rel="stylesheet" href="css/game.css">
@@ -137,7 +138,7 @@ function fb_input_name(string $field): string
 <main class="fb-shell fb-top">
 <div class="fb-panel fb-wide">
     <header class="fb-admin-head">
-        <h1 class="fb-h1">Flying Bird</h1>
+        <h1 class="fb-h1"><?= fb_h(FB_APP_NAME) ?></h1>
         <nav class="fb-links">
             <a href="index.php">View game</a>
             <?php if ($loggedIn): ?>
@@ -186,6 +187,12 @@ function fb_input_name(string $field): string
                 <label class="fb-check"><input type="checkbox" name="<?= fb_input_name('leaderboard') ?>" value="1" <?= $s['leaderboard'] ? 'checked' : '' ?>> Enable the public leaderboard</label></div>
             <div class="fb-field"><label for="f-size">Entries shown</label>
                 <input id="f-size" type="number" min="3" max="50" name="<?= fb_input_name('leaderboard_size') ?>" value="<?= (int) $s['leaderboard_size'] ?>"></div>
+            <div class="fb-field"><label for="f-arcade">Arcade link</label>
+                <input id="f-arcade" name="<?= fb_input_name('arcade_url') ?>" value="<?= fb_h($s['arcade_url']) ?>" placeholder="../ or https://menj.buzz/arcade/">
+                <p class="fb-muted">Shows a "‹ Arcade" link on the game when it lives inside an arcade hub. Leave empty for none.</p></div>
+            <div class="fb-field"><label for="f-public">Public address</label>
+                <input id="f-public" name="<?= fb_input_name('public_url') ?>" value="<?= fb_h($s['public_url']) ?>" placeholder="https://menj.buzz/arcade/beberd/">
+                <p class="fb-muted">Used in share previews (Open Graph). Leave empty to detect it automatically.</p></div>
             <?php $close();
 
         elseif ($tab === 'appearance'):
