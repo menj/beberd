@@ -56,6 +56,12 @@
 		if (window.FBAudio) { FBAudio.play(name, arg); }
 	}
 
+	// Haptics: short vibrations on touch devices that support them (never for reduced-motion visitors).
+	function buzz(pattern) {
+		if (reducedMotion || !navigator.vibrate || store('fb_haptics') === '0') { return; }
+		try { navigator.vibrate(pattern); } catch (e) { /* ignore */ }
+	}
+
 	// Deterministic RNG so everyone gets the same pipes in the daily challenge.
 	function seedFrom(str) {
 		var h = 1779033703 ^ str.length;
@@ -174,6 +180,24 @@
 		return list[0];
 	}
 
+	// Something funny to say when Hamilton crashes.
+	var QUIPS = {
+		pipe: ['Bonk! Right in the beak.', 'That pipe came out of nowhere.', 'Hamilton saw stars.', 'Pipes: 1, Hamilton: 0.', 'Beak first. Bold strategy.', 'He\u2019s fine. Mostly.'],
+		ground: ['Gravity wins again.', 'Face-planted. Gloriously.', 'Hamilton has landed. Unplanned.', 'The floor is not lava, sadly.', 'Flapping is not optional, Hamilton.', 'Soft landing. For the ground.']
+	};
+	var COMICS = { pipe: ['BONK!', 'WHAM!', 'OOF!', 'DOINK!'], ground: ['THUD!', 'SPLAT!', 'OOF!', 'PLOP!'] };
+	var TAGLINES = [
+		'Help Hamilton fly through the pipes.', 'Hamilton has questionable aerodynamics.', 'Gravity is not a suggestion.',
+		'Tiny bird. Big dreams. Many pipes.', 'Hamilton believes in himself. Mostly.', 'No birds were harmed. Some were bonked.'
+	];
+	var PAUSE_LINES = ['Hamilton is catching his breath.', 'Hamilton is checking his map. Upside down.', 'Snack break. Birds need snacks.'];
+	var CHEERS = { coin: ['CHA-CHING!', 'SHINY!', 'MINE!', 'YUM!'], level: ['WOO!', 'LEVEL UP!', 'HAMILTON!'], milestone: { 10: 'NICE!', 25: 'WOW!', 50: 'LEGEND!' } };
+	function pick(list, not) {
+		var v;
+		do { v = list[Math.floor(Math.random() * list.length)]; } while (v === not && list.length > 1);
+		return v;
+	}
+
 	function Game(root) {
 		this.root = root;
 		this.baseDiff = DIFFICULTY[root.getAttribute('data-difficulty')] || DIFFICULTY.normal;
@@ -181,7 +205,8 @@
 		this.mode = 'classic';
 		this.day = CFG.today || new Date().toISOString().slice(0, 10);
 		this.shake = 0; this.flash = 0; this.pop = 0; this.freeze = 0;
-		this.god = false; this.cheated = false; this.godT = 0;
+		this.god = false; this.cheated = false; this.godT = 0; this.assisted = false;
+		this.comic = null; this.dizzy = 0; this.quip = ''; this.expr = null; this.blinkAt = 2; this.nearMisses = 0;
 		var storedMute = store('fb_muted');
 		this.muted = storedMute === null ? CFG.sound === false : storedMute === '1';
 		if (window.FBAudio) {
@@ -198,6 +223,7 @@
 		if (store('fb_story_seen') !== '1') { this.storyIdx = 0; this.storyIntro = true; this.showOverlay('story'); }
 		this.stage.focus({ preventScroll: true });
 		this.last = performance.now();
+		this.padPrev = {};
 		var self = this;
 		requestAnimationFrame(function tick(now) {
 			self.frame(now);
@@ -320,7 +346,7 @@
 		if (name === 'start') {
 			c.appendChild(el('h2', 'fb-title', 'Flying Bird'));
 			var bestClassic = this.bestFor('classic');
-			c.appendChild(el('p', 'fb-sub', T.tagline + (bestClassic ? ' · ' + T.best + ' ' + bestClassic : '')));
+			c.appendChild(el('p', 'fb-sub', pick(TAGLINES) + (bestClassic ? ' · ' + T.best + ' ' + bestClassic : '')));
 			if (CFG.startMode === 'daily') {
 				// Opened from the "Daily" shortcut: lead with the daily challenge.
 				primary = this.dailyButton();
@@ -349,15 +375,22 @@
 			primary = c.querySelector('.fb-back');
 		} else if (name === 'paused') {
 			c.appendChild(el('h2', 'fb-title', T.paused));
-			c.appendChild(el('p', 'fb-sub', 'P / Esc'));
+			c.appendChild(el('p', 'fb-sub', pick(PAUSE_LINES)));
 			primary = el('button', 'fb-btn', T.resume);
 			primary.type = 'button';
 			primary.addEventListener('click', function () { self.resume(); });
 			c.appendChild(primary);
+			if (navigator.vibrate) {
+				var hap = el('button', 'fb-btn fb-btn-link', 'Haptics ' + (store('fb_haptics') === '0' ? 'off' : 'on'));
+				hap.type = 'button';
+				hap.addEventListener('click', function () { store('fb_haptics', store('fb_haptics') === '0' ? '1' : '0'); buzz(15); self.showOverlay('paused'); });
+				c.appendChild(hap);
+			}
 		} else if (name === 'over' && data && data.cheated) {
 			// God-mode run: nothing is saved, so no medal, form or leaderboard.
 			c.appendChild(el('span', 'fb-tag', 'God mode run'));
 			c.appendChild(el('h2', 'fb-title', T.gameOver));
+			if (data.quip) { c.appendChild(el('p', 'fb-quip', data.quip)); }
 			c.appendChild(this.stats(this.score, null));
 			c.appendChild(el('p', 'fb-sub', 'Cheat runs are not recorded.'));
 			primary = el('button', 'fb-btn', T.playAgain);
@@ -366,33 +399,41 @@
 			c.appendChild(primary);
 		} else if (name === 'over') {
 			var daily = this.mode === 'daily';
+			var assisted = !!(data && data.assisted);
+			if (assisted) { c.appendChild(el('span', 'fb-tag', 'Assist mode')); }
 			if (daily) { c.appendChild(el('span', 'fb-tag', T.daily + ' · ' + this.dayLabel())); }
 			if (data.isBest) { c.appendChild(el('span', 'fb-badge', T.newBest)); }
 			c.appendChild(el('h2', 'fb-title', T.gameOver));
-			var medal = medalFor(this.score);
+			if (data.quip) { c.appendChild(el('p', 'fb-quip', data.quip)); }
+			var medal = assisted ? null : medalFor(this.score); // assisted runs earn no medals
 			if (medal) { c.appendChild(this.medalEl(medal)); }
 			if (data.goals && data.goals.length) { c.appendChild(el('p', 'fb-unlock', 'Goal complete: ' + data.goals.join(', '))); }
 			if (data.unlocked && data.unlocked.length) { c.appendChild(el('p', 'fb-unlock', 'Unlocked: ' + data.unlocked.join(', '))); }
 			c.appendChild(this.stats(this.score, this.bestFor(this.mode), this.coins));
-			if (CFG.leaderboard && CFG.apiUrl && this.score > 0) { this.saveFormInto(c); }
+			if (assisted && this.score > 0) { c.appendChild(el('p', 'fb-sub', 'Assisted runs count toward your story and wardrobe, but not scores or medals.')); }
+			else if (CFG.leaderboard && CFG.apiUrl && this.score > 0) { this.saveFormInto(c); }
 			primary = el('button', 'fb-btn', T.playAgain);
 			primary.type = 'button';
 			primary.addEventListener('click', function () { self.begin(); });
-			c.appendChild(primary);
+			var btnRow = el('div', 'fb-btn-row'); // two buttons side by side keeps the card short
+			btnRow.appendChild(primary);
 			if (daily) {
-				var other = el('button', 'fb-btn fb-btn-ghost', T.tryClassic);
+				var other = el('button', 'fb-btn fb-btn-ghost', 'Classic');
 				other.type = 'button';
 				other.addEventListener('click', function () { self.begin('classic'); });
-				c.appendChild(other);
+				btnRow.appendChild(other);
 			} else {
-				c.appendChild(this.dailyButton());
+				btnRow.appendChild(this.dailyButton(true));
 			}
+			c.appendChild(btnRow);
 			c.appendChild(this.linkRow());
 			if (CFG.showBoard && CFG.apiUrl) { this.boardInto(c); }
 		}
 		this.overlay.classList.add('is-open');
 		if (primary && name !== 'start') { primary.focus({ preventScroll: true }); }
 	};
+
+	Game.prototype.assistOn = function () { return store('fb_assist') === '1'; };
 
 	Game.prototype.linkRow = function () {
 		var self = this, pr = progress();
@@ -408,6 +449,12 @@
 		goals.addEventListener('click', function () { self.showOverlay('goals'); });
 		row.appendChild(goals);
 		row.appendChild(this.wardrobeButton());
+		var assist = el('button', 'fb-btn fb-btn-link' + (this.assistOn() ? ' is-on' : ''), 'Assist ' + (this.assistOn() ? 'on' : 'off'));
+		assist.type = 'button';
+		assist.setAttribute('aria-pressed', this.assistOn() ? 'true' : 'false');
+		assist.title = 'Wider gaps and slower pipes. Assisted runs don\u2019t count toward bests, medals or the leaderboard.';
+		assist.addEventListener('click', function () { store('fb_assist', self.assistOn() ? '0' : '1'); self.showOverlay(self.overlayName, self.lastOver); });
+		row.appendChild(assist);
 		return row;
 	};
 
@@ -520,12 +567,12 @@
 		ctx.drawImage(spr[BEAT[Math.floor(now / 130) % 4]], 0, 0, cv.width, cv.height);
 	};
 
-	Game.prototype.dailyButton = function () {
+	Game.prototype.dailyButton = function (compact) {
 		var self = this, done = this.bestFor('daily');
 		var b = el('button', 'fb-btn fb-btn-ghost');
 		b.type = 'button';
-		b.appendChild(document.createTextNode(T.daily + ' · ' + this.dayLabel()));
-		if (done) { b.appendChild(el('small', 'fb-btn-note', T.best + ' ' + done)); }
+		b.appendChild(document.createTextNode((compact ? 'Daily' : T.daily) + ' · ' + this.dayLabel()));
+		if (done && !compact) { b.appendChild(el('small', 'fb-btn-note', T.best + ' ' + done)); }
 		b.addEventListener('click', function () { self.begin('daily'); });
 		return b;
 	};
@@ -734,6 +781,7 @@
 		this.shake = this.flash = this.pop = this.freeze = 0;
 		this.cheated = this.god; // a run that starts in god mode is never recorded
 		this.coins = 0; this.coinList = []; this.spawned = 0; this.movingPassed = 0; this.goalsHit = [];
+		this.comic = null; this.dizzy = 0; this.expr = null; this.nearMisses = 0;
 		this.powerList = []; this.powerCount = 0; this.shield = false; this.slow = 0; this.magnet = 0; this.invuln = 0; this.level = 1;
 		this.pipes = [];
 		this.particles = [];
@@ -752,6 +800,11 @@
 		this.storyIntro = false;
 		// The daily challenge is always Normal so everyone flies the same course.
 		this.diff = this.mode === 'daily' ? DIFFICULTY.normal : this.baseDiff;
+		// Assist mode (not available in the daily challenge, which must be the same for everyone):
+		// wider gaps and a slower scroll. Such runs never count toward bests, medals or the leaderboard.
+		this.assisted = this.assistOn() && this.mode !== 'daily';
+		if (this.assisted) { this.diff = { gap: this.diff.gap * 1.2, speed: this.diff.speed * 0.85 }; }
+		this.stage.classList.toggle('is-assist', this.assisted);
 		this.reset();
 		this.state = 'playing';
 		this.showOverlay(null);
@@ -775,6 +828,7 @@
 		this.bird.sq = 1;   // squash & stretch
 		this.puff();
 		snd('flap');
+		buzz(8);
 	};
 
 	Game.prototype.pause = function () {
@@ -817,7 +871,7 @@
 	};
 
 	Game.prototype.checkGoals = function (force) {
-		if (this.cheated || (!force && this.state !== 'playing')) { return; }
+		if (this.cheated || this.assisted || (!force && this.state !== 'playing')) { return; }
 		var st = this.goalState(), goals = goalsFor(this.day), changed = false, self = this;
 		goals.forEach(function (g) {
 			if (!st.done[g.id] && g.tpl.prog(self, st) >= g.target) {
@@ -891,6 +945,12 @@
 		this.overAt = performance.now();
 		if (window.FBAudio) { FBAudio.musicStop(); }
 		snd(reason === 'pipe' ? 'hit' : 'die');
+		buzz([50, 30, 80]);
+		// A comic-book "BONK!", dizzy stars, a cartoon boing and a joke for the card.
+		this.comic = { text: pick(COMICS[reason] || COMICS.pipe), t: 0, size: 40 };
+		this.dizzy = 2.6;
+		this.quip = this.chooseQuip(reason);
+		if (reason === 'pipe') { setTimeout(function () { snd('boing'); }, 140); }
 		if (!reducedMotion) {
 			this.shake = 0.4;
 			this.flash = 1;
@@ -904,7 +964,7 @@
 			// God-mode runs never touch scores, medals, bests or unlocks.
 			var self0 = this;
 			setTimeout(function () {
-				self0.lastOver = { cheated: true };
+				self0.lastOver = { cheated: true, quip: self0.quip };
 				if (self0.state === 'over') { self0.showOverlay('over', self0.lastOver); }
 			}, reducedMotion ? 0 : 420);
 			return;
@@ -912,9 +972,11 @@
 
 		// Run totals for goals and the coin stat (cheat runs returned above).
 		this.checkGoals(true); // uses today's total *before* this run is added
-		var gst = this.goalState();
-		gst.total += this.score;
-		store('fb_goals_' + this.day, JSON.stringify(gst));
+		if (!this.assisted) {
+			var gst = this.goalState();
+			gst.total += this.score;
+			store('fb_goals_' + this.day, JSON.stringify(gst));
+		}
 		if (this.coins > 0) { store('fb_coins', String((parseInt(store('fb_coins'), 10) || 0) + this.coins)); }
 
 		// Lifetime progress drives the wardrobe unlocks.
@@ -922,7 +984,7 @@
 		var all = LOOKS.concat(HATS, CHAPTERS).filter(function (it) { return it.need; });
 		var wasOpen = all.map(function (it) { return isUnlocked(it, before); });
 		store('fb_total', String(before.pipes + this.score));
-		if (this.score > before.score) { store('fb_max', String(this.score)); }
+		if (!this.assisted && this.score > before.score) { store('fb_max', String(this.score)); }
 		if (this.mode === 'daily' && this.score > 0) { store('fb_dp', '1'); }
 		var after = progress(), unlocked = [];
 		all.forEach(function (it, i) {
@@ -931,13 +993,27 @@
 
 		var goalsDone = this.goalsHit.slice();
 		var key = this.bestKey(this.mode), prev = this.bestFor(this.mode);
-		var isBest = this.score > prev;
+		var isBest = !this.assisted && this.score > prev;
 		if (isBest) { store(key, String(this.score)); }
 		// Let the crash play out before the card slides in.
 		setTimeout(function () {
-			self.lastOver = { isBest: isBest && self.score > 0, unlocked: unlocked, goals: goalsDone };
+			self.lastOver = { isBest: isBest && self.score > 0, unlocked: unlocked, goals: goalsDone, assisted: self.assisted, quip: self.quip };
 			if (self.state === 'over') { self.showOverlay('over', self.lastOver); }
 		}, reducedMotion ? 0 : 420);
+	};
+
+	/** A joke that fits what just happened. */
+	Game.prototype.chooseQuip = function (reason) {
+		var pool = QUIPS[reason] || QUIPS.pipe, extra = [];
+		if (this.score === 0) { return 'Hamilton didn\u2019t even leave the hill.'; }
+		if (this.score >= 40) { extra.push('An absolute legend. Briefly.'); }
+		if (this.coins >= 5) { extra.push('Died with ' + this.coins + ' coins. Worth it?'); }
+		if (this.nearMisses >= 3) { extra.push('Lived dangerously. Died dangerously.'); }
+		if (this.powerCount >= 2) { extra.push('So many power-ups. So little survival.'); }
+		if (this.level >= 4) { extra.push('Level ' + this.level + ' and still bonking.'); }
+		// Situational jokes are more likely than the generic ones, but not guaranteed.
+		var list = extra.length && Math.random() < 0.65 ? extra : pool;
+		return pick(list, this.quip);
 	};
 
 	// A little trail of feathers behind the bird on each flap.
@@ -992,6 +1068,14 @@
 		this.shake = Math.max(0, this.shake - dt);
 		this.flash = Math.max(0, this.flash - dt * 4);
 		this.pop = Math.max(0, this.pop - dt * 5);
+		this.dizzy = Math.max(0, this.dizzy - dt);
+		if (this.expr) { this.expr.t -= dt; if (this.expr.t <= 0) { this.expr = null; } }
+		this.blinkAt -= dt;
+		if (this.blinkAt <= 0) { // idle blink
+			this.blinkAt = 2.4 + Math.random() * 2.6;
+			if (!this.expr && this.state !== 'over') { this.expr = { n: 'blink', t: 0.13 }; }
+		}
+		if (this.comic) { this.comic.t += dt; if (this.comic.t > 1.1) { this.comic = null; } }
 		b.sq = Math.max(0, b.sq - dt * 7);
 		if (this.freeze > 0) { this.freeze -= dt; return; }
 
@@ -1046,6 +1130,9 @@
 				this.coinList.splice(i, 1);
 				this.coins++;
 				snd('coin');
+				buzz(12);
+				this.setExpr('love', 0.7);
+				if (Math.random() < 0.18) { this.say(pick(CHEERS.coin), 28); }
 				this.sparkle(coin.x, coin.y);
 				this.checkGoals();
 			} else if (coin.x < -COIN_R * 2) {
@@ -1077,6 +1164,15 @@
 				pipe.passed = true;
 				this.score++;
 				if (pipe.kind === 'moving') { this.movingPassed++; }
+				if (pipe.minClear !== undefined && pipe.minClear < 9) {
+					// Squeaked through: wide eyes, a sweat drop and relief.
+					this.nearMisses++;
+					this.setExpr('worried', 0.9);
+					this.say('PHEW!', 30);
+					snd('phew');
+				} else {
+					this.setExpr('happy', 0.35);
+				}
 				this.checkGoals();
 				this.pop = 1;
 				snd('point', this.score);
@@ -1085,7 +1181,16 @@
 					this.level = levelOf(this.score);
 					this.caption('Level ' + this.level);
 					snd('level');
+					this.setExpr('happy', 1.1);
+					this.say(pick(CHEERS.level), 34);
+					buzz([20, 40, 20]);
 				} else if (CAPTIONS[this.score]) { this.caption(CAPTIONS[this.score]); }
+				if (CHEERS.milestone[this.score]) { this.setExpr('happy', 1); this.say(CHEERS.milestone[this.score], 34); }
+			}
+			if (pipe.x < BIRD_X + BIRD_R && pipe.x + PIPE_W > BIRD_X - BIRD_R) { // bird is alongside this pipe: how close was it?
+				var ph = (pipe.gap || this.diff.gap) / 2;
+				var clear = Math.min(b.y - (pipe.gapY - ph), (pipe.gapY + ph) - b.y) - BIRD_R;
+				pipe.minClear = pipe.minClear === undefined ? clear : Math.min(pipe.minClear, clear);
 			}
 			if (!this.god && this.invuln <= 0 && this.hits(pipe)) {
 				if (this.shield) { this.breakShield(); } else { this.die('pipe'); return; }
@@ -1121,9 +1226,27 @@
 
 	/* ---------- Rendering ---------- */
 
+	/** Gamepad: A/B/X/Y or D-pad up flaps (and starts/restarts), Start pauses, Back/Select mutes. */
+	Game.prototype.pollPad = function () {
+		if (!navigator.getGamepads) { return; }
+		var pads = navigator.getGamepads(), pad = null, i;
+		for (i = 0; i < pads.length; i++) { if (pads[i] && pads[i].connected) { pad = pads[i]; break; } }
+		if (!pad) { return; }
+		var now = {}, prev = this.padPrev;
+		[0, 1, 2, 3, 12, 8, 9].forEach(function (b) { now[b] = !!(pad.buttons[b] && pad.buttons[b].pressed); });
+		var edge = function (b) { return now[b] && !prev[b]; };
+		if (edge(0) || edge(1) || edge(2) || edge(3) || edge(12)) {
+			if (this.state === 'paused') { this.resume(); } else { this.flap(); }
+		}
+		if (edge(9)) { if (this.state === 'ready' || this.state === 'over') { this.flap(); } else { this.togglePause(); } }
+		if (edge(8)) { this.toggleMute(); }
+		this.padPrev = now;
+	};
+
 	Game.prototype.frame = function (now) {
 		var dt = Math.min((now - this.last) / 1000, 1 / 30);
 		this.last = now;
+		this.pollPad();
 		this.update(dt);
 		this.draw();
 		if (this.previewCanvas && this.overlayName === 'wardrobe') { this.drawPreview(now); }
@@ -1211,6 +1334,7 @@
 		ctx.globalAlpha = 1;
 
 		this.drawBird(ctx);
+		this.drawComic(ctx);
 
 		if (this.state === 'playing' || this.state === 'paused' || this.state === 'over') {
 			ctx.font = '700 56px ' + (getComputedStyle(this.root).fontFamily || 'sans-serif');
@@ -1273,6 +1397,9 @@
 		else if (kind === 'magnet') { this.magnet = pw.time; }
 		this.powerCount++;
 		snd('power');
+		buzz(25);
+		this.setExpr(kind === 'slow' ? 'sleepy' : 'smug', 1.4);
+		this.say(kind === 'shield' ? 'SHIELD UP!' : (kind === 'slow' ? 'ZZZ...' : 'ZZZAP!'), 28);
 		this.sparkle(x, y);
 		this.caption(pw.name + '!');
 		this.checkGoals();
@@ -1282,6 +1409,9 @@
 		this.shield = false;
 		this.invuln = 1.2; // a moment of grace to get clear of whatever you hit
 		snd('shield');
+		buzz([30, 20, 30]);
+		this.setExpr('shocked', 0.9);
+		this.say('WHOA!', 34);
 		this.caption('Shield broken');
 		if (!reducedMotion) {
 			for (var i = 0; i < 14; i++) {
@@ -1364,6 +1494,61 @@
 		return b.anim < 0.3 ? BEAT[Math.min(3, Math.floor(b.anim / 0.075))] : 'mid';
 	};
 
+	/** Which face Hamilton is pulling right now (null = the default one). */
+	Game.prototype.faceName = function () {
+		if (this.state === 'over') { return 'dead'; }
+		if (this.expr) { return this.expr.n; }
+		return this.slow > 0 ? 'sleepy' : null; // slow-mo makes him drowsy
+	};
+
+	/** Hamilton pulls a face for a moment. */
+	Game.prototype.setExpr = function (name, secs) {
+		if (this.state === 'over') { return; }
+		this.expr = { n: name, t: secs };
+	};
+
+	/** A comic-book word bursts out next to Hamilton. */
+	Game.prototype.say = function (text, size) {
+		this.comic = { text: text, t: 0, size: size || 30 };
+	};
+
+	/** Dizzy stars circling Hamilton's head, plus the comic-book "BONK!" burst. */
+	Game.prototype.drawComic = function (ctx) {
+		var b = this.bird, now = performance.now();
+		if (this.state === 'over' && this.dizzy > 0) {
+			var fade = Math.min(1, this.dizzy / 0.6);
+			for (var k = 0; k < 3; k++) {
+				var ang = now / 260 + (k * Math.PI * 2) / 3;
+				var sx = BIRD_X + Math.cos(ang) * 24, sy = b.y - 30 + Math.sin(ang) * 7;
+				ctx.globalAlpha = fade;
+				ctx.fillStyle = '#1a1424';
+				ctx.fillRect(sx - 6, sy - 2, 12, 4); ctx.fillRect(sx - 2, sy - 6, 4, 12);
+				ctx.fillStyle = '#ffd23f';
+				ctx.fillRect(sx - 5, sy - 1, 10, 2); ctx.fillRect(sx - 1, sy - 5, 2, 10);
+			}
+			ctx.globalAlpha = 1;
+		}
+		if (this.comic) {
+			var t = this.comic.t, rise = reducedMotion ? 0 : Math.min(1, t * 6) * 22;
+			var alpha = t < 0.8 ? 1 : Math.max(0, 1 - (t - 0.8) / 0.3);
+			var scale = reducedMotion ? 1 : 0.6 + 0.5 * Math.min(1, t * 8);
+			ctx.save();
+			ctx.translate(BIRD_X + 70, b.y - 50 - rise);
+			ctx.rotate(-0.14);
+			ctx.scale(scale, scale);
+			ctx.globalAlpha = alpha;
+			var fs = this.comic.size || 40;
+			ctx.font = '900 ' + fs + 'px ' + (getComputedStyle(this.root).fontFamily || 'sans-serif');
+			ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+			ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(5, fs / 5); ctx.strokeStyle = '#1a1424';
+			ctx.strokeText(this.comic.text, 0, 0);
+			ctx.fillStyle = '#ffd23f';
+			ctx.fillText(this.comic.text, 0, 0);
+			ctx.restore();
+			ctx.globalAlpha = 1;
+		}
+	};
+
 	Game.prototype.drawBird = function (ctx) {
 		var b = this.bird, spr = this.sprites;
 		if (!spr) { return; }
@@ -1381,7 +1566,9 @@
 		ctx.rotate(rot);
 		ctx.scale(1 - 0.12 * b.sq, 1 + 0.18 * b.sq); // squash & stretch on flap
 		ctx.imageSmoothingEnabled = false;
-		ctx.drawImage(spr[this.wingPose()], -8 * S, -9.5 * S, FBSprite.width * S, FBSprite.height * S);
+		var pose = this.wingPose(), face = this.faceName();
+		var frame = face === 'dead' && spr.dead ? spr.dead : (face && spr[pose + ':' + face]) || spr[pose];
+		ctx.drawImage(frame, -8 * S, -9.5 * S, FBSprite.width * S, FBSprite.height * S);
 		ctx.restore();
 	};
 

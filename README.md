@@ -102,6 +102,25 @@ you can't die, Hamilton turns ghostly and leaves a rainbow trail. It can be swit
 * It is a client-side convenience, not a security boundary: someone who edits the page's JavaScript could change their own
   local game, which is why scores are also sanity-checked on the server.
 
+## Hamilton has feelings
+
+Hamilton reacts to what happens, not just to crashes: heart eyes for a coin, a happy arc for a cleared pipe or level-up,
+a smug look for a shield or magnet, sleepy eyes in slow-mo, wide eyes with a sweat drop (and a "PHEW!") on a close call,
+shock when his shield breaks, and the odd idle blink. Comic-book words pop out ("CHA-CHING!", "WHOA!", "ZZZAP!"), and a crash
+gets X eyes, a tongue out, dizzy stars and a boing. The game-over card tells a joke that fits what just happened (coins,
+close calls, power-ups, level), and the start and pause cards rotate silly lines.
+
+## Accessibility and input
+
+* **High contrast** colour scheme (black and white with yellow pipes, 16:1 and 21:1 contrast), also used automatically by
+  the *Auto* scheme when the visitor's system asks for more contrast.
+* **Assist mode** (toggle on the start and game-over cards): 20% wider gaps and 15% slower pipes. Assisted runs still count
+  toward the story and wardrobe, but never toward best scores, medals, daily goals or the leaderboard, and the daily
+  challenge is never assisted so it stays identical for everyone.
+* **Gamepad:** A/B/X/Y or D-pad up flaps (and starts or restarts), Start pauses, Back/Select mutes.
+* **Haptics** on supporting phones (flap, coin, power-up, crash). Switch them off from the pause card; they are never
+  used for visitors who prefer reduced motion.
+
 ## Controls
 
 | | |

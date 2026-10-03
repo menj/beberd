@@ -15,6 +15,7 @@ function fb_schemes(): array
         'midnight' => 'Midnight',
         'mono'     => 'Mono',
         'forest'   => 'Forest',
+        'contrast' => 'High contrast',
         'sunset'   => 'Sunset',
         'custom'   => 'Custom',
     ];
