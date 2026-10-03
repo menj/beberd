@@ -282,11 +282,22 @@
 			c.appendChild(el('h2', 'fb-title', 'Flying Bird'));
 			var bestClassic = this.bestFor('classic');
 			c.appendChild(el('p', 'fb-sub', T.tagline + (bestClassic ? ' · ' + T.best + ' ' + bestClassic : '')));
-			primary = el('button', 'fb-btn', T.play);
-			primary.type = 'button';
-			primary.addEventListener('click', function () { self.begin('classic'); });
-			c.appendChild(primary);
-			c.appendChild(this.dailyButton());
+			if (CFG.startMode === 'daily') {
+				// Opened from the "Daily" shortcut: lead with the daily challenge.
+				primary = this.dailyButton();
+				primary.className = 'fb-btn';
+				c.appendChild(primary);
+				var classic = el('button', 'fb-btn fb-btn-ghost', T.classic);
+				classic.type = 'button';
+				classic.addEventListener('click', function () { self.begin('classic'); });
+				c.appendChild(classic);
+			} else {
+				primary = el('button', 'fb-btn', T.play);
+				primary.type = 'button';
+				primary.addEventListener('click', function () { self.begin('classic'); });
+				c.appendChild(primary);
+				c.appendChild(this.dailyButton());
+			}
 			c.appendChild(this.linkRow());
 		} else if (name === 'story') {
 			this.storyInto(c);

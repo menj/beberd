@@ -28,6 +28,7 @@ $config = [
     'sound'       => (bool) $s['sound'],
     'music'       => (bool) $s['music'],
     'today'       => fb_today(),
+    'startMode'   => ($_GET['mode'] ?? '') === 'daily' ? 'daily' : 'classic', // app shortcut / deep link
 ];
 ?>
 <!DOCTYPE html>
@@ -37,6 +38,13 @@ $config = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= fb_h($s['site_title']) ?></title>
     <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#0b1026">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Flying Bird">
     <link rel="stylesheet" href="css/game.css">
     <link rel="stylesheet" href="css/site.css">
 </head>
@@ -52,5 +60,6 @@ $config = [
     <script src="js/sprite.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/game.js"></script>
+    <script src="js/pwa.js"></script>
 </body>
 </html>

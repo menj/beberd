@@ -54,6 +54,21 @@ Built in: Auto (light/dark), Dawn, Midnight, Mono, Forest, Sunset, plus Custom.
 * **Sound:** every effect and the background music loop are synthesised with Web Audio, so there are no audio files.
   The streak is audible: the point chime rises in pitch with your score, and the music speeds up.
 
+## Hamilton's story and wardrobe
+
+* **Story:** six short chapters about Hamilton, the smallest bird on Pipe Hill, who sets out to cross the Great Pipes.
+  Chapter 1 appears on first launch; later chapters unlock as you clear pipes (10, 50, 150, 300, 600), and short
+  captions appear in flight at score milestones. Reread them any time from the **Story** link.
+* **Wardrobe:** four colour looks (Ember, Frost, Shadow, Golden) and four hats (Cap, Shades, Party hat, Crown),
+  unlocked by total pipes cleared, a best score, or finishing a daily challenge. Progress is stored in the browser.
+
+## Install as an app (PWA)
+
+The game is installable and **works offline**. Serve it over HTTPS (or `localhost`) and use your browser's
+*Install* option, or the *Install app* link in the page footer. A service worker (`sw.js`) caches the game; the
+leaderboard, admin and installer always go to the network. Bump `VERSION` in `sw.js` when you ship changes to
+force clients to refresh. The Daily challenge is also available as an app shortcut.
+
 ## Controls
 
 | | |
@@ -76,6 +91,7 @@ admin.php          tabbed settings        js/game.js     game engine (canvas)
 database/schema.sql                       js/sprite.js   pixel-art bird + wing frames
 includes/          db, settings, bootstrap js/admin.js    admin behaviour
 js/audio.js        synthesised sound + music
+sw.js, manifest.webmanifest, js/pwa.js, icons/   offline + install
 ```
 
 ## Security notes
