@@ -10,6 +10,8 @@ It runs **with or without a database**. You play as Hamilton, a pixel-art bird w
 | Shared leaderboard | – | yes |
 | Admin panel (colour scheme, difficulty, scores) | – | yes |
 
+**Supported databases:** MySQL / MariaDB, PostgreSQL and SQLite (all through PDO). Pick one in the installer.
+
 ## Quick start
 
 ```bash
@@ -23,17 +25,24 @@ You can preview a look with `?scheme=midnight` or `?difficulty=hard`.
 
 Open `/install.php` (there is a link in the page footer). Like the WordPress installer, it:
 
-1. checks your server (PHP, PDO MySQL, writable folder),
-2. connects to MySQL / MariaDB and **creates the database if it doesn't exist**,
-3. **creates all tables automatically** from `database/schema.sql`, so no manual SQL import is needed,
-4. creates your admin account and writes `config.php`,
-5. locks itself once finished (delete `config.php` to run it again).
+1. checks your server (PHP, writable folder, which database drivers are installed),
+2. lets you choose **MySQL / MariaDB, PostgreSQL or SQLite**,
+3. creates the database for you where the engine allows it (MySQL and PostgreSQL need a user with the right to; SQLite just creates a file),
+4. **creates all tables automatically** from `database/schema.<engine>.sql`, so no manual SQL import is needed,
+5. creates your admin account and writes `config.php`,
+6. locks itself once finished (delete `config.php` to run it again).
 
-The schema is versioned. If a future release changes it, tables are upgraded automatically on the
-next request, and the admin **Database** tab can re-check or repair them at any time.
-If the database ever becomes unreachable the game keeps working and only the leaderboard is hidden.
+The schema is versioned. If a future release changes it, tables are upgraded automatically on the next request, and the
+admin **Database** tab can re-check or repair them at any time. If the database ever becomes unreachable the game keeps
+working and only the leaderboard is hidden.
 
-Requirements: PHP 7.4+ with `pdo_mysql` and `mbstring`; MySQL 5.7+ / MariaDB 10.3+.
+| Engine | PHP extension | Notes |
+|---|---|---|
+| MySQL / MariaDB | `pdo_mysql` | MySQL 5.7+ / MariaDB 10.3+ (tested on MariaDB 10.11) |
+| PostgreSQL | `pdo_pgsql` | Tested on PostgreSQL 16 |
+| SQLite | `pdo_sqlite` | SQLite 3.24+ (upserts). The file defaults to `data/flying-bird.sqlite`. Prefer a path outside your web root when you can |
+
+Also requires PHP 7.4+ with `mbstring`.
 
 ## Admin panel
 
@@ -46,9 +55,21 @@ Built in: Auto (light/dark), Dawn, Midnight, Mono, Forest, Sunset, plus Custom.
 ## Game modes and feel
 
 * **Classic** is endless flying at your chosen difficulty.
-* **Daily challenge** gives everyone the same pipes for the day (seeded by the UTC date, always Normal difficulty).
+* **Daily challenge** gives everyone the same pipes, coins, power-ups and goals for the day (seeded by the UTC date, always Normal difficulty).
   With a database it has its own daily leaderboard; without one your best of the day is kept in the browser.
 * **Medals** at 10 (bronze), 25 (silver) and 50 (gold).
+* **Levels:** every 8 pipes is a new level, and each level is a little harder: gaps tighten slightly (down to 82%),
+  **moving pipes** (marked with arrows) appear more often and swing wider and faster (capped at 60px), and from level 3
+  **narrow pipes** mix in. The first five pipes are always plain.
+* **Power-ups** float between pipes (about one a level):
+  * **Shield:** absorbs one hit (a pipe or the floor), then gives you a moment of grace to get clear.
+  * **Slow-mo:** the world runs at about 60% speed for 5 seconds.
+  * **Magnet:** pulls nearby coins to you for 7 seconds.
+* **Coins** float between pipes too. Neither coins nor power-ups add to your score (scores stay one point per pipe, so
+  leaderboard checks are unaffected, and slow-mo never makes a score look faster than it was). Coins are tracked as their own stat.
+* **Daily goals:** three goals per day (for example "Collect 6 coins in one run"), the same for everyone, picked by a
+  generator seeded with the date. Finish all three to build a **streak**; miss a day and it resets. Open them from the
+  **Goals** link.
 * **Feel:** squash-and-stretch flaps, feather trail, score pop, and on impact a flash, screen shake, hit-stop and pixel burst
   (all disabled for visitors who prefer reduced motion).
 * **Sound:** every effect and the background music loop are synthesised with Web Audio, so there are no audio files.
@@ -81,6 +102,25 @@ you can't die, Hamilton turns ghostly and leaves a rainbow trail. It can be swit
 * It is a client-side convenience, not a security boundary: someone who edits the page's JavaScript could change their own
   local game, which is why scores are also sanity-checked on the server.
 
+## Hamilton has feelings
+
+Hamilton reacts to what happens, not just to crashes: heart eyes for a coin, a happy arc for a cleared pipe or level-up,
+a smug look for a shield or magnet, sleepy eyes in slow-mo, wide eyes with a sweat drop (and a "PHEW!") on a close call,
+shock when his shield breaks, and the odd idle blink. Comic-book words pop out ("CHA-CHING!", "WHOA!", "ZZZAP!"), and a crash
+gets X eyes, a tongue out, dizzy stars and a boing. The game-over card tells a joke that fits what just happened (coins,
+close calls, power-ups, level), and the start and pause cards rotate silly lines.
+
+## Accessibility and input
+
+* **High contrast** colour scheme (black and white with yellow pipes, 16:1 and 21:1 contrast), also used automatically by
+  the *Auto* scheme when the visitor's system asks for more contrast.
+* **Assist mode** (toggle on the start and game-over cards): 20% wider gaps and 15% slower pipes. Assisted runs still count
+  toward the story and wardrobe, but never toward best scores, medals, daily goals or the leaderboard, and the daily
+  challenge is never assisted so it stays identical for everyone.
+* **Gamepad:** A/B/X/Y or D-pad up flaps (and starts or restarts), Start pauses, Back/Select mutes.
+* **Haptics** on supporting phones (flap, coin, power-up, crash). Switch them off from the pause card; they are never
+  used for visitors who prefer reduced motion.
+
 ## Controls
 
 | | |
@@ -100,7 +140,7 @@ index.php          the game page          css/game.css   game + colour schemes
 api.php            leaderboard JSON API   css/site.css   page chrome
 install.php        web installer          css/admin.css  admin panel
 admin.php          tabbed settings        js/game.js     game engine (canvas)
-database/schema.sql                       js/sprite.js   pixel-art bird + wing frames
+database/schema.*.sql                     js/sprite.js   pixel-art bird + wing frames
 includes/          db, settings, bootstrap js/admin.js    admin behaviour
 js/audio.js        synthesised sound + music
 sw.js, manifest.webmanifest, js/pwa.js, icons/   offline + install
@@ -108,8 +148,9 @@ sw.js, manifest.webmanifest, js/pwa.js, icons/   offline + install
 
 ## Security notes
 
-* Keep `config.php`, `includes/` and `database/` private. The bundled `.htaccess` does this on Apache.
-  On nginx add: `location ~ ^/(includes|database)/ { deny all; }` and `location = /config.php { deny all; }`.
+* Keep `config.php`, `includes/`, `database/` and (for SQLite) `data/` private. The bundled `.htaccess` files do this on Apache.
+  On nginx add: `location ~ ^/(includes|database|data)/ { deny all; }`, `location = /config.php { deny all; }` and
+  `location ~ \.(sqlite3?|db)$ { deny all; }`.
 * Passwords are hashed with `password_hash`, all queries are prepared, forms and the score API use CSRF tokens,
   and scores are sanity-checked and rate-limited.
 * Delete `install.php` after set-up if you like. It already refuses to run once installed.

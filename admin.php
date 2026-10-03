@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             fb_redirect('admin.php?tab=scores');
 
         case 'repair_db':
-            fb_install_schema(fb_db(), fb_config()['db_prefix']);
+            fb_install_schema(fb_db(), fb_config()['db_prefix'], fb_driver());
             fb_setting_write(fb_db(), 'db_version', (string) FB_DB_VERSION);
             fb_flash('Database tables checked and repaired.');
             fb_redirect('admin.php?tab=database');
@@ -266,7 +266,8 @@ function fb_input_name(string $field): string
             <table class="fb-table">
                 <tbody>
                     <tr><th>Server</th><td><?= fb_h($pdo->getAttribute(PDO::ATTR_SERVER_VERSION)) ?></td></tr>
-                    <tr><th>Database</th><td><code><?= fb_h($c['db_name']) ?></code> on <code><?= fb_h($c['db_host']) ?></code></td></tr>
+                    <tr><th>Engine</th><td><?= fb_h(fb_drivers()[fb_driver()]['label']) ?></td></tr>
+                    <tr><th>Database</th><td><?php if (fb_driver() === 'sqlite'): ?><code><?= fb_h($c['db_path']) ?></code><?php else: ?><code><?= fb_h($c['db_name']) ?></code> on <code><?= fb_h($c['db_host']) ?></code><?php endif; ?></td></tr>
                     <tr><th>Schema version</th><td><?= (int) fb_setting_row($pdo, 'db_version') ?> / <?= FB_DB_VERSION ?></td></tr>
                     <?php foreach ($tables as $t):
                         try { $n = (int) $pdo->query('SELECT COUNT(*) FROM ' . fb_table($t))->fetchColumn(); $ok = true; } catch (Throwable $e) { $n = 0; $ok = false; } ?>
