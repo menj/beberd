@@ -103,13 +103,22 @@
 	];
 	var BEAT = ['up', 'mid', 'down', 'mid'];
 
-	var COIN_R = 10;
+	var COIN_R = 10, POWER_R = 13;
+	var LEVEL_EVERY = 8; // pipes per level
+	var POWERS = {
+		shield: { name: 'Shield',  color: '#4cc9f0', time: 0 },
+		slow:   { name: 'Slow-mo', color: '#b794f6', time: 5 },
+		magnet: { name: 'Magnet',  color: '#ff6b6b', time: 7 }
+	};
+	var POWER_KEYS = ['shield', 'slow', 'magnet'];
+	function levelOf(n) { return 1 + Math.floor(n / LEVEL_EVERY); }
 
 	// Daily goals: three per day, picked from these by a generator seeded with the date.
 	var GOAL_TEMPLATES = [
 		{ id: 'score',  picks: [15, 20, 25, 30, 40], text: function (n) { return 'Score ' + n + ' in one run'; },          prog: function (g) { return g.score; } },
 		{ id: 'coins',  picks: [4, 6, 8],            text: function (n) { return 'Collect ' + n + ' coins in one run'; },    prog: function (g) { return g.coins; } },
 		{ id: 'moving', picks: [3, 5],              text: function (n) { return 'Pass ' + n + ' moving pipes in one run'; }, prog: function (g) { return g.movingPassed; } },
+		{ id: 'power',  picks: [1, 2, 3],          text: function (n) { return 'Collect ' + n + ' power-up' + (n > 1 ? 's' : '') + ' in one run'; }, prog: function (g) { return g.powerCount; } },
 		{ id: 'total',  picks: [40, 60, 80],        text: function (n) { return 'Clear ' + n + ' pipes today'; },            prog: function (g, st) { return st.total + g.score; } }
 	];
 	function goalsFor(day) {
@@ -725,6 +734,7 @@
 		this.shake = this.flash = this.pop = this.freeze = 0;
 		this.cheated = this.god; // a run that starts in god mode is never recorded
 		this.coins = 0; this.coinList = []; this.spawned = 0; this.movingPassed = 0; this.goalsHit = [];
+		this.powerList = []; this.powerCount = 0; this.shield = false; this.slow = 0; this.magnet = 0; this.invuln = 0; this.level = 1;
 		this.pipes = [];
 		this.particles = [];
 		this.score = 0;
@@ -940,24 +950,32 @@
 
 	/* ---------- Simulation ---------- */
 
-	// Pipe variety: moving and narrow pipes appear gradually, and coins float between pipes.
-	// The generator is always drawn from three times per pipe, so the daily course is identical for everyone.
+	// Difficulty ramps by level (every 8 pipes): gaps tighten a little, moving pipes appear more
+	// often and swing wider and faster, and narrow pipes join from level 3. Power-ups and coins float
+	// between pipes. The generator is always drawn from five times per pipe, so the daily course is
+	// identical for every player.
 	Game.prototype.spawnPipe = function (x) {
-		var n = this.spawned++;
-		var u1 = this.rng(), u2 = this.rng(), u3 = this.rng();
+		var n = this.spawned++, level = levelOf(n);
+		var u1 = this.rng(), u2 = this.rng(), u3 = this.rng(), u4 = this.rng(), u5 = this.rng();
+		var pMove = n >= 5 ? Math.min(0.5, 0.15 + 0.05 * (level - 1)) : 0;
+		var pNarrow = level >= 3 ? Math.min(0.3, 0.1 + 0.04 * (level - 3)) : 0;
 		var kind = 'normal';
-		if (n >= 10 && u2 < 0.28) { kind = 'moving'; } else if (n >= 18 && u2 < 0.5) { kind = 'narrow'; }
-		var gap = this.diff.gap * (kind === 'narrow' ? 0.86 : 1);
-		var amp = kind === 'moving' ? 38 : 0, margin = 90;
+		if (u2 < pMove) { kind = 'moving'; } else if (u2 < pMove + pNarrow) { kind = 'narrow'; }
+		var gap = this.diff.gap * Math.max(0.82, 1 - 0.025 * (level - 1)) * (kind === 'narrow' ? 0.88 : 1);
+		var amp = kind === 'moving' ? Math.min(60, 30 + 5 * (level - 1)) : 0, margin = 90;
+		var freq = Math.min(2.3, 1.5 + 0.1 * (level - 1));
 		var min = margin + gap / 2 + amp, max = H - GROUND - margin - gap / 2 - amp;
 		var target = min + u1 * (max - min);
 		// Limit the jump between consecutive gaps so every course is passable.
 		var baseY = Math.max(min, Math.min(max, this.lastGapY + Math.max(-170, Math.min(170, target - this.lastGapY))));
 		this.lastGapY = baseY;
 		var phase = u1 * 6.283;
-		this.pipes.push({ x: x, baseY: baseY, gapY: baseY + amp * Math.sin(phase), gap: gap, kind: kind, amp: amp, t: phase, passed: false });
-		if (n >= 2 && u3 < 0.55) {
-			this.coinList.push({ x: x + PIPE_W / 2 + PIPE_SPACING / 2, y: baseY });
+		this.pipes.push({ x: x, baseY: baseY, gapY: baseY + amp * Math.sin(phase), gap: gap, kind: kind, amp: amp, freq: freq, t: phase, passed: false });
+		var mid = x + PIPE_W / 2 + PIPE_SPACING / 2;
+		if (n >= 4 && u3 < 0.14) {
+			this.powerList.push({ x: mid, y: Math.max(150, Math.min(H - GROUND - 60, baseY + (u5 - 0.5) * 80)), kind: POWER_KEYS[Math.floor(u4 * POWER_KEYS.length)] });
+		} else if (n >= 2 && u3 < 0.55) {
+			this.coinList.push({ x: mid, y: baseY });
 		}
 	};
 
@@ -993,7 +1011,12 @@
 		}
 		if (this.state !== 'playing') { return; }
 
-		this.playMs += dt * 1000;
+		this.playMs += dt * 1000; // real time, so slow-mo can never make a score look too fast
+		// Power-up timers run in real time; slow-mo then stretches the world's time.
+		this.invuln = Math.max(0, this.invuln - dt);
+		this.slow = Math.max(0, this.slow - dt);
+		this.magnet = Math.max(0, this.magnet - dt);
+		if (this.slow > 0) { dt *= 0.62; }
 		this.speed = this.diff.speed + Math.min(this.score * 2.5, 60);
 		this.distance += this.speed * dt;
 
@@ -1014,6 +1037,10 @@
 		for (i = this.coinList.length - 1; i >= 0; i--) {
 			var coin = this.coinList[i];
 			coin.x -= this.speed * dt;
+			if (this.magnet > 0) {
+				var mx = BIRD_X - coin.x, my = b.y - coin.y;
+				if (mx * mx + my * my < 190 * 190) { var pull = Math.min(1, dt * 5); coin.x += mx * pull; coin.y += my * pull; }
+			}
 			var cdx = coin.x - BIRD_X, cdy = coin.y - b.y;
 			if (cdx * cdx + cdy * cdy < (BIRD_R + COIN_R - 2) * (BIRD_R + COIN_R - 2)) {
 				this.coinList.splice(i, 1);
@@ -1026,11 +1053,23 @@
 			}
 		}
 
+		for (i = this.powerList.length - 1; i >= 0; i--) {
+			var pw = this.powerList[i];
+			pw.x -= this.speed * dt;
+			var pdx = pw.x - BIRD_X, pdy = pw.y - b.y;
+			if (pdx * pdx + pdy * pdy < (BIRD_R + POWER_R - 2) * (BIRD_R + POWER_R - 2)) {
+				this.powerList.splice(i, 1);
+				this.applyPower(pw.kind, pw.x, pw.y);
+			} else if (pw.x < -POWER_R * 2) {
+				this.powerList.splice(i, 1);
+			}
+		}
+
 		for (i = this.pipes.length - 1; i >= 0; i--) {
 			var pipe = this.pipes[i];
 			pipe.x -= this.speed * dt;
 			if (pipe.kind === 'moving') {
-				pipe.t += dt * 1.7;
+				pipe.t += dt * (pipe.freq || 1.7);
 				pipe.gapY = pipe.baseY + pipe.amp * Math.sin(pipe.t);
 			}
 			if (pipe.x + PIPE_W < -10) { this.pipes.splice(i, 1); continue; }
@@ -1042,16 +1081,27 @@
 				this.pop = 1;
 				snd('point', this.score);
 				if (window.FBAudio) { FBAudio.setIntensity(this.score); }
-				if (CAPTIONS[this.score]) { this.caption(CAPTIONS[this.score]); }
+				if (this.score % LEVEL_EVERY === 0) {
+					this.level = levelOf(this.score);
+					this.caption('Level ' + this.level);
+					snd('level');
+				} else if (CAPTIONS[this.score]) { this.caption(CAPTIONS[this.score]); }
 			}
-			if (!this.god && this.hits(pipe)) { this.die('pipe'); return; }
+			if (!this.god && this.invuln <= 0 && this.hits(pipe)) {
+				if (this.shield) { this.breakShield(); } else { this.die('pipe'); return; }
+			}
 		}
 		var lastPipe = this.pipes[this.pipes.length - 1];
 		if (!lastPipe || lastPipe.x < W - PIPE_SPACING + 40) { this.spawnPipe(W + 40); }
 
 		if (b.y + BIRD_R >= H - GROUND) {
 			b.y = H - GROUND - BIRD_R;
-			if (this.god) { b.vy = 0; } else { this.die('ground'); }
+			if (this.god) { b.vy = 0; }
+			else if (this.invuln > 0 || this.shield) {
+				// The shield saves you from the floor too: bounce back up.
+				if (this.invuln <= 0) { this.breakShield(); }
+				b.vy = FLAP * 0.9; b.sq = 1;
+			} else { this.die('ground'); }
 		}
 	};
 
@@ -1120,6 +1170,13 @@
 			if (p.kind === 'moving') { this.drawArrows(ctx, p, half); }
 		}
 
+		// Power-ups: a coloured badge that bobs.
+		var tPow = performance.now();
+		for (i = 0; i < this.powerList.length; i++) {
+			var pu = this.powerList[i];
+			this.drawPowerIcon(ctx, pu.kind, pu.x, pu.y + Math.sin(tPow / 260 + pu.x * 0.05) * 4, POWER_R);
+		}
+
 		// Coins: a spinning gold disc.
 		var tNow = performance.now();
 		for (i = 0; i < this.coinList.length; i++) {
@@ -1170,6 +1227,28 @@
 			ctx.globalAlpha = 1;
 		}
 
+		// Slow-mo tint, level label and active power-up chips.
+		if (this.slow > 0) {
+			ctx.fillStyle = 'rgba(140,100,255,.10)';
+			ctx.fillRect(0, 0, W, H);
+		}
+		if (this.state === 'playing' || this.state === 'paused') {
+			ctx.font = '700 13px ' + (getComputedStyle(this.root).fontFamily || 'sans-serif');
+			ctx.textAlign = 'center'; ctx.fillStyle = P.ink; ctx.globalAlpha = 0.55;
+			ctx.fillText('LEVEL ' + this.level, W / 2, 126);
+			ctx.globalAlpha = 1;
+			var chips = [];
+			if (this.shield) { chips.push(['shield', 1]); }
+			if (this.slow > 0) { chips.push(['slow', this.slow / POWERS.slow.time]); }
+			if (this.magnet > 0) { chips.push(['magnet', this.magnet / POWERS.magnet.time]); }
+			for (i = 0; i < chips.length; i++) {
+				var cx0 = W / 2 + (i - (chips.length - 1) / 2) * 44;
+				this.drawPowerIcon(ctx, chips[i][0], cx0, 150, 11);
+				ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(cx0 - 12, 168, 24, 4);
+				ctx.fillStyle = POWERS[chips[i][0]].color; ctx.fillRect(cx0 - 12, 168, 24 * chips[i][1], 4);
+			}
+		}
+
 		// Impact flash and screen shake (shake is a CSS transform, so no edges show).
 		if (this.flash > 0) {
 			ctx.fillStyle = '#ffffff';
@@ -1184,6 +1263,58 @@
 		} else if (this.shaking) {
 			this.canvas.style.transform = '';
 			this.shaking = false;
+		}
+	};
+
+	Game.prototype.applyPower = function (kind, x, y) {
+		var pw = POWERS[kind];
+		if (kind === 'shield') { this.shield = true; }
+		else if (kind === 'slow') { this.slow = pw.time; }
+		else if (kind === 'magnet') { this.magnet = pw.time; }
+		this.powerCount++;
+		snd('power');
+		this.sparkle(x, y);
+		this.caption(pw.name + '!');
+		this.checkGoals();
+	};
+
+	Game.prototype.breakShield = function () {
+		this.shield = false;
+		this.invuln = 1.2; // a moment of grace to get clear of whatever you hit
+		snd('shield');
+		this.caption('Shield broken');
+		if (!reducedMotion) {
+			for (var i = 0; i < 14; i++) {
+				var a = (i / 14) * Math.PI * 2;
+				this.particles.push({ x: BIRD_X, y: this.bird.y, vx: Math.cos(a) * 170, vy: Math.sin(a) * 170, life: 0.5, r: 2.5, puff: true, hue: 195 });
+			}
+		}
+	};
+
+	/** Small power-up glyph centred on (x, y). */
+	Game.prototype.drawPowerIcon = function (ctx, kind, x, y, r) {
+		var col = POWERS[kind].color;
+		ctx.fillStyle = '#1a1424';
+		ctx.beginPath(); ctx.arc(x, y, r + 2, 0, Math.PI * 2); ctx.fill();
+		ctx.fillStyle = col;
+		ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+		ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff'; ctx.lineCap = 'round';
+		var k = r / 13;
+		if (kind === 'shield') {
+			ctx.beginPath();
+			ctx.moveTo(x, y - 7 * k); ctx.lineTo(x + 6 * k, y - 4 * k); ctx.lineTo(x + 6 * k, y + 1 * k);
+			ctx.quadraticCurveTo(x + 5 * k, y + 6 * k, x, y + 8 * k);
+			ctx.quadraticCurveTo(x - 5 * k, y + 6 * k, x - 6 * k, y + 1 * k);
+			ctx.lineTo(x - 6 * k, y - 4 * k); ctx.closePath(); ctx.fill();
+		} else if (kind === 'slow') {
+			ctx.lineWidth = 2 * k;
+			ctx.beginPath(); ctx.arc(x, y, 6 * k, 0, Math.PI * 2); ctx.stroke();
+			ctx.beginPath(); ctx.moveTo(x, y - 4 * k); ctx.lineTo(x, y); ctx.lineTo(x + 3 * k, y + 2 * k); ctx.stroke();
+		} else {
+			ctx.lineWidth = 3.2 * k;
+			ctx.beginPath(); ctx.arc(x, y + 1 * k, 5 * k, 0, Math.PI); ctx.stroke();
+			ctx.fillRect(x - 6.6 * k, y - 6 * k, 3.2 * k, 7 * k);
+			ctx.fillRect(x + 3.4 * k, y - 6 * k, 3.2 * k, 7 * k);
 		}
 	};
 
@@ -1241,6 +1372,12 @@
 		ctx.save();
 		ctx.translate(BIRD_X, b.y);
 		if (this.god) { ctx.globalAlpha = 0.7 + 0.15 * Math.sin(performance.now() / 120); }
+		else if (this.invuln > 0 && Math.floor(performance.now() / 90) % 2) { ctx.globalAlpha = 0.35; }
+		if (this.shield) {
+			var pulse = 1 + 0.05 * Math.sin(performance.now() / 150);
+			ctx.fillStyle = 'rgba(76,201,240,.18)'; ctx.strokeStyle = 'rgba(76,201,240,.95)'; ctx.lineWidth = 2;
+			ctx.beginPath(); ctx.arc(0, 0, 28 * pulse, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+		}
 		ctx.rotate(rot);
 		ctx.scale(1 - 0.12 * b.sq, 1 + 0.18 * b.sq); // squash & stretch on flap
 		ctx.imageSmoothingEnabled = false;

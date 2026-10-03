@@ -73,6 +73,9 @@
 		hit: function () { noise(0.2, 0.5, 2000, 200); tone('sine', 190, 50, 0.28, 0.5); },
 		die: function () { tone('sawtooth', 420, 70, 0.5, 0.16); },
 		coin: function () { var t = ctx.currentTime; tone('square', 988, 988, 0.06, 0.07, t); tone('square', 1319, 1319, 0.13, 0.07, t + 0.06); },
+		power: function () { var t = ctx.currentTime; tone('triangle', 523, 523, 0.07, 0.1, t); tone('triangle', 784, 784, 0.07, 0.1, t + 0.06); tone('triangle', 1175, 1175, 0.16, 0.1, t + 0.12); },
+		shield: function () { noise(0.22, 0.4, 3000, 400); tone('sawtooth', 600, 150, 0.25, 0.1); },
+		level: function () { var t = ctx.currentTime; [523, 659, 784, 1047].forEach(function (f, i) { tone('square', f, f, 0.09, 0.06, t + i * 0.07); }); },
 		swoosh: function () { noise(0.28, 0.25, 400, 3200); }
 	};
 

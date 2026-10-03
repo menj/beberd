@@ -55,12 +55,18 @@ Built in: Auto (light/dark), Dawn, Midnight, Mono, Forest, Sunset, plus Custom.
 ## Game modes and feel
 
 * **Classic** is endless flying at your chosen difficulty.
-* **Daily challenge** gives everyone the same pipes, coins and goals for the day (seeded by the UTC date, always Normal difficulty).
+* **Daily challenge** gives everyone the same pipes, coins, power-ups and goals for the day (seeded by the UTC date, always Normal difficulty).
   With a database it has its own daily leaderboard; without one your best of the day is kept in the browser.
 * **Medals** at 10 (bronze), 25 (silver) and 50 (gold).
-* **Pipe variety:** the first ten pipes are plain; after that **moving** pipes (marked with arrows) and, later, **narrow**
-  pipes mix in. Spinning **coins** float between pipes. Coins never add to your score (scores stay one point per pipe, so
-  leaderboard checks are unaffected); they are tracked as their own stat.
+* **Levels:** every 8 pipes is a new level, and each level is a little harder: gaps tighten slightly (down to 82%),
+  **moving pipes** (marked with arrows) appear more often and swing wider and faster (capped at 60px), and from level 3
+  **narrow pipes** mix in. The first five pipes are always plain.
+* **Power-ups** float between pipes (about one a level):
+  * **Shield:** absorbs one hit (a pipe or the floor), then gives you a moment of grace to get clear.
+  * **Slow-mo:** the world runs at about 60% speed for 5 seconds.
+  * **Magnet:** pulls nearby coins to you for 7 seconds.
+* **Coins** float between pipes too. Neither coins nor power-ups add to your score (scores stay one point per pipe, so
+  leaderboard checks are unaffected, and slow-mo never makes a score look faster than it was). Coins are tracked as their own stat.
 * **Daily goals:** three goals per day (for example "Collect 6 coins in one run"), the same for everyone, picked by a
   generator seeded with the date. Finish all three to build a **streak**; miss a day and it resets. Open them from the
   **Goals** link.
