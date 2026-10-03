@@ -55,9 +55,15 @@ Built in: Auto (light/dark), Dawn, Midnight, Mono, Forest, Sunset, plus Custom.
 ## Game modes and feel
 
 * **Classic** is endless flying at your chosen difficulty.
-* **Daily challenge** gives everyone the same pipes for the day (seeded by the UTC date, always Normal difficulty).
+* **Daily challenge** gives everyone the same pipes, coins and goals for the day (seeded by the UTC date, always Normal difficulty).
   With a database it has its own daily leaderboard; without one your best of the day is kept in the browser.
 * **Medals** at 10 (bronze), 25 (silver) and 50 (gold).
+* **Pipe variety:** the first ten pipes are plain; after that **moving** pipes (marked with arrows) and, later, **narrow**
+  pipes mix in. Spinning **coins** float between pipes. Coins never add to your score (scores stay one point per pipe, so
+  leaderboard checks are unaffected); they are tracked as their own stat.
+* **Daily goals:** three goals per day (for example "Collect 6 coins in one run"), the same for everyone, picked by a
+  generator seeded with the date. Finish all three to build a **streak**; miss a day and it resets. Open them from the
+  **Goals** link.
 * **Feel:** squash-and-stretch flaps, feather trail, score pop, and on impact a flash, screen shake, hit-stop and pixel burst
   (all disabled for visitors who prefer reduced motion).
 * **Sound:** every effect and the background music loop are synthesised with Web Audio, so there are no audio files.

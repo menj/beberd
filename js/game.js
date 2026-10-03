@@ -103,6 +103,25 @@
 	];
 	var BEAT = ['up', 'mid', 'down', 'mid'];
 
+	var COIN_R = 10;
+
+	// Daily goals: three per day, picked from these by a generator seeded with the date.
+	var GOAL_TEMPLATES = [
+		{ id: 'score',  picks: [15, 20, 25, 30, 40], text: function (n) { return 'Score ' + n + ' in one run'; },          prog: function (g) { return g.score; } },
+		{ id: 'coins',  picks: [4, 6, 8],            text: function (n) { return 'Collect ' + n + ' coins in one run'; },    prog: function (g) { return g.coins; } },
+		{ id: 'moving', picks: [3, 5],              text: function (n) { return 'Pass ' + n + ' moving pipes in one run'; }, prog: function (g) { return g.movingPassed; } },
+		{ id: 'total',  picks: [40, 60, 80],        text: function (n) { return 'Clear ' + n + ' pipes today'; },            prog: function (g, st) { return st.total + g.score; } }
+	];
+	function goalsFor(day) {
+		var rnd = mulberry32(seedFrom('goals:' + day)), pool = GOAL_TEMPLATES.slice(), out = [];
+		while (out.length < 3) {
+			var t = pool.splice(Math.floor(rnd() * pool.length), 1)[0];
+			out.push({ id: t.id, target: t.picks[Math.floor(rnd() * t.picks.length)], tpl: t });
+		}
+		return out;
+	}
+	function addDays(day, n) { return new Date(new Date(day + 'T00:00:00Z').getTime() + n * 86400000).toISOString().slice(0, 10); }
+
 	// Hamilton's story: chapters unlock as you clear pipes.
 	var CHAPTERS = [
 		{ title: 'The Smallest Bird', need: null,
@@ -310,6 +329,9 @@
 				c.appendChild(this.dailyButton());
 			}
 			c.appendChild(this.linkRow());
+		} else if (name === 'goals') {
+			this.goalsInto(c);
+			primary = c.querySelector('.fb-back');
 		} else if (name === 'story') {
 			this.storyInto(c);
 			primary = c.querySelector('.fb-back');
@@ -340,8 +362,9 @@
 			c.appendChild(el('h2', 'fb-title', T.gameOver));
 			var medal = medalFor(this.score);
 			if (medal) { c.appendChild(this.medalEl(medal)); }
+			if (data.goals && data.goals.length) { c.appendChild(el('p', 'fb-unlock', 'Goal complete: ' + data.goals.join(', '))); }
 			if (data.unlocked && data.unlocked.length) { c.appendChild(el('p', 'fb-unlock', 'Unlocked: ' + data.unlocked.join(', '))); }
-			c.appendChild(this.stats(this.score, this.bestFor(this.mode)));
+			c.appendChild(this.stats(this.score, this.bestFor(this.mode), this.coins));
 			if (CFG.leaderboard && CFG.apiUrl && this.score > 0) { this.saveFormInto(c); }
 			primary = el('button', 'fb-btn', T.playAgain);
 			primary.type = 'button';
@@ -370,6 +393,11 @@
 		story.type = 'button';
 		story.addEventListener('click', function () { self.storyIdx = open - 1; self.storyIntro = false; self.showOverlay('story'); });
 		row.appendChild(story);
+		var st = this.goalState(), done = goalsFor(this.day).filter(function (g) { return st.done[g.id]; }).length;
+		var goals = el('button', 'fb-btn fb-btn-link', 'Goals ' + done + '/3');
+		goals.type = 'button';
+		goals.addEventListener('click', function () { self.showOverlay('goals'); });
+		row.appendChild(goals);
 		row.appendChild(this.wardrobeButton());
 		return row;
 	};
@@ -413,7 +441,7 @@
 
 	Game.prototype.wardrobeButton = function () {
 		var self = this;
-		var b = el('button', 'fb-btn fb-btn-link', 'Hamilton\u2019s wardrobe');
+		var b = el('button', 'fb-btn fb-btn-link', 'Wardrobe');
 		b.type = 'button';
 		b.addEventListener('click', function () { self.wardNote = ''; self.showOverlay('wardrobe'); });
 		return b;
@@ -501,9 +529,9 @@
 		return m;
 	};
 
-	Game.prototype.stats = function (score, best) {
+	Game.prototype.stats = function (score, best, coins) {
 		var wrap = el('div', 'fb-stats');
-		[[score, T.score], [best, T.best]].forEach(function (p) {
+		[[score, T.score], [best, T.best], [coins > 0 ? coins : null, 'Coins']].forEach(function (p) {
 			if (p[0] === null) { return; }
 			var s = el('div', 'fb-stat');
 			s.appendChild(el('b', null, String(p[0])));
@@ -696,6 +724,7 @@
 		this.rng = this.mode === 'daily' ? mulberry32(seedFrom('flying-bird:' + this.day)) : Math.random;
 		this.shake = this.flash = this.pop = this.freeze = 0;
 		this.cheated = this.god; // a run that starts in god mode is never recorded
+		this.coins = 0; this.coinList = []; this.spawned = 0; this.movingPassed = 0; this.goalsHit = [];
 		this.pipes = [];
 		this.particles = [];
 		this.score = 0;
@@ -767,6 +796,72 @@
 		}
 	};
 
+	/* ---------- Daily goals ---------- */
+
+	Game.prototype.goalState = function () {
+		var st;
+		try { st = JSON.parse(store('fb_goals_' + this.day) || '{}'); } catch (e) { st = {}; }
+		st.done = st.done || {};
+		st.total = st.total || 0;
+		return st;
+	};
+
+	Game.prototype.checkGoals = function (force) {
+		if (this.cheated || (!force && this.state !== 'playing')) { return; }
+		var st = this.goalState(), goals = goalsFor(this.day), changed = false, self = this;
+		goals.forEach(function (g) {
+			if (!st.done[g.id] && g.tpl.prog(self, st) >= g.target) {
+				st.done[g.id] = true;
+				changed = true;
+				var text = g.tpl.text(g.target);
+				self.goalsHit.push(text);
+				if (!force) { self.caption('Goal complete: ' + text); }
+			}
+		});
+		if (changed) {
+			store('fb_goals_' + this.day, JSON.stringify(st));
+			if (goals.every(function (g) { return st.done[g.id]; })) { this.bumpStreak(); }
+		}
+	};
+
+	/** Finishing all three goals on a day extends the streak (once per day). */
+	Game.prototype.bumpStreak = function () {
+		var s;
+		try { s = JSON.parse(store('fb_streak') || '{}'); } catch (e) { s = {}; }
+		if (s.last === this.day) { return; }
+		s = { last: this.day, n: s.last === addDays(this.day, -1) ? (s.n || 0) + 1 : 1 };
+		store('fb_streak', JSON.stringify(s));
+	};
+
+	Game.prototype.streak = function () {
+		var s;
+		try { s = JSON.parse(store('fb_streak') || '{}'); } catch (e) { s = {}; }
+		// A streak is alive if the last completed day was today or yesterday.
+		return s.last === this.day || s.last === addDays(this.day, -1) ? (s.n || 0) : 0;
+	};
+
+	Game.prototype.goalsInto = function (c) {
+		var self = this, st = this.goalState(), goals = goalsFor(this.day);
+		c.appendChild(el('span', 'fb-tag', 'Daily goals \u00b7 ' + this.dayLabel()));
+		c.appendChild(el('h2', 'fb-title', 'Today\u2019s goals'));
+		var list = el('ul', 'fb-goals');
+		goals.forEach(function (g) {
+			var done = !!st.done[g.id], have = Math.min(g.target, g.tpl.prog({ score: 0, coins: 0, movingPassed: 0 }, st));
+			var li = el('li', done ? 'is-done' : '');
+			li.appendChild(el('span', 'fb-goal-mark', done ? '\u2713' : ''));
+			li.appendChild(el('span', 'fb-goal-text', g.tpl.text(g.target)));
+			if (g.id === 'total' && !done) { li.appendChild(el('small', null, have + '/' + g.target)); }
+			list.appendChild(li);
+		});
+		c.appendChild(list);
+		var n = this.streak();
+		c.appendChild(el('p', 'fb-sub', n > 0 ? 'Streak: ' + n + (n === 1 ? ' day' : ' days') + ' in a row' : 'Finish all three to start a streak.'));
+		var back = el('button', 'fb-btn fb-back', 'Back');
+		back.type = 'button';
+		back.addEventListener('click', function () { self.showOverlay(self.state === 'over' ? 'over' : 'start', self.lastOver); });
+		c.appendChild(back);
+	};
+
 	// Admin-only god mode: you can't die. The run is flagged and never recorded.
 	Game.prototype.toggleGod = function () {
 		if (!CFG.admin) { return; }
@@ -805,6 +900,13 @@
 			return;
 		}
 
+		// Run totals for goals and the coin stat (cheat runs returned above).
+		this.checkGoals(true); // uses today's total *before* this run is added
+		var gst = this.goalState();
+		gst.total += this.score;
+		store('fb_goals_' + this.day, JSON.stringify(gst));
+		if (this.coins > 0) { store('fb_coins', String((parseInt(store('fb_coins'), 10) || 0) + this.coins)); }
+
 		// Lifetime progress drives the wardrobe unlocks.
 		var before = progress();
 		var all = LOOKS.concat(HATS, CHAPTERS).filter(function (it) { return it.need; });
@@ -817,12 +919,13 @@
 			if (!wasOpen[i] && isUnlocked(it, after)) { unlocked.push(it.title ? 'Story: ' + it.title : it.name + (LOOKS.indexOf(it) >= 0 ? ' look' : '')); }
 		});
 
+		var goalsDone = this.goalsHit.slice();
 		var key = this.bestKey(this.mode), prev = this.bestFor(this.mode);
 		var isBest = this.score > prev;
 		if (isBest) { store(key, String(this.score)); }
 		// Let the crash play out before the card slides in.
 		setTimeout(function () {
-			self.lastOver = { isBest: isBest && self.score > 0, unlocked: unlocked };
+			self.lastOver = { isBest: isBest && self.score > 0, unlocked: unlocked, goals: goalsDone };
 			if (self.state === 'over') { self.showOverlay('over', self.lastOver); }
 		}, reducedMotion ? 0 : 420);
 	};
@@ -837,14 +940,25 @@
 
 	/* ---------- Simulation ---------- */
 
+	// Pipe variety: moving and narrow pipes appear gradually, and coins float between pipes.
+	// The generator is always drawn from three times per pipe, so the daily course is identical for everyone.
 	Game.prototype.spawnPipe = function (x) {
-		var margin = 90, gap = this.diff.gap;
-		var min = margin + gap / 2, max = H - GROUND - margin - gap / 2;
-		var target = min + this.rng() * (max - min);
+		var n = this.spawned++;
+		var u1 = this.rng(), u2 = this.rng(), u3 = this.rng();
+		var kind = 'normal';
+		if (n >= 10 && u2 < 0.28) { kind = 'moving'; } else if (n >= 18 && u2 < 0.5) { kind = 'narrow'; }
+		var gap = this.diff.gap * (kind === 'narrow' ? 0.86 : 1);
+		var amp = kind === 'moving' ? 38 : 0, margin = 90;
+		var min = margin + gap / 2 + amp, max = H - GROUND - margin - gap / 2 - amp;
+		var target = min + u1 * (max - min);
 		// Limit the jump between consecutive gaps so every course is passable.
-		var gapY = Math.max(min, Math.min(max, this.lastGapY + Math.max(-170, Math.min(170, target - this.lastGapY))));
-		this.lastGapY = gapY;
-		this.pipes.push({ x: x, gapY: gapY, passed: false });
+		var baseY = Math.max(min, Math.min(max, this.lastGapY + Math.max(-170, Math.min(170, target - this.lastGapY))));
+		this.lastGapY = baseY;
+		var phase = u1 * 6.283;
+		this.pipes.push({ x: x, baseY: baseY, gapY: baseY + amp * Math.sin(phase), gap: gap, kind: kind, amp: amp, t: phase, passed: false });
+		if (n >= 2 && u3 < 0.55) {
+			this.coinList.push({ x: x + PIPE_W / 2 + PIPE_SPACING / 2, y: baseY });
+		}
 	};
 
 	Game.prototype.update = function (dt) {
@@ -896,13 +1010,35 @@
 			}
 		}
 
+		// Coins drift with the pipes; touch one to collect it.
+		for (i = this.coinList.length - 1; i >= 0; i--) {
+			var coin = this.coinList[i];
+			coin.x -= this.speed * dt;
+			var cdx = coin.x - BIRD_X, cdy = coin.y - b.y;
+			if (cdx * cdx + cdy * cdy < (BIRD_R + COIN_R - 2) * (BIRD_R + COIN_R - 2)) {
+				this.coinList.splice(i, 1);
+				this.coins++;
+				snd('coin');
+				this.sparkle(coin.x, coin.y);
+				this.checkGoals();
+			} else if (coin.x < -COIN_R * 2) {
+				this.coinList.splice(i, 1);
+			}
+		}
+
 		for (i = this.pipes.length - 1; i >= 0; i--) {
 			var pipe = this.pipes[i];
 			pipe.x -= this.speed * dt;
+			if (pipe.kind === 'moving') {
+				pipe.t += dt * 1.7;
+				pipe.gapY = pipe.baseY + pipe.amp * Math.sin(pipe.t);
+			}
 			if (pipe.x + PIPE_W < -10) { this.pipes.splice(i, 1); continue; }
 			if (!pipe.passed && pipe.x + PIPE_W < BIRD_X - BIRD_R) {
 				pipe.passed = true;
 				this.score++;
+				if (pipe.kind === 'moving') { this.movingPassed++; }
+				this.checkGoals();
 				this.pop = 1;
 				snd('point', this.score);
 				if (window.FBAudio) { FBAudio.setIntensity(this.score); }
@@ -921,7 +1057,7 @@
 
 	// Circle (bird) vs the two pipe rectangles.
 	Game.prototype.hits = function (pipe) {
-		var b = this.bird, half = this.diff.gap / 2;
+		var b = this.bird, half = (pipe.gap || this.diff.gap) / 2;
 		var rects = [[pipe.x, -10, PIPE_W, pipe.gapY - half + 10], [pipe.x, pipe.gapY + half, PIPE_W, H]];
 		for (var i = 0; i < 2; i++) {
 			var r = rects[i];
@@ -977,11 +1113,25 @@
 		this.hills(ctx, this.distance * 0.25, H - GROUND - 60, 20, 0.02, P.hill, 0.9);
 
 		// Pipes.
-		var half = this.diff.gap / 2;
 		for (i = 0; i < this.pipes.length; i++) {
-			var p = this.pipes[i];
+			var p = this.pipes[i], half = (p.gap || this.diff.gap) / 2;
 			this.drawPipe(ctx, p.x, -10, p.gapY - half + 10, true);
 			this.drawPipe(ctx, p.x, p.gapY + half, H - GROUND - (p.gapY + half), false);
+			if (p.kind === 'moving') { this.drawArrows(ctx, p, half); }
+		}
+
+		// Coins: a spinning gold disc.
+		var tNow = performance.now();
+		for (i = 0; i < this.coinList.length; i++) {
+			var cn = this.coinList[i];
+			var spin = Math.max(0.2, Math.abs(Math.cos(tNow / 260 + cn.x * 0.04)));
+			var cy = cn.y + Math.sin(tNow / 220 + cn.x * 0.05) * 3;
+			ctx.fillStyle = '#1a1424';
+			ctx.beginPath(); ctx.ellipse(cn.x, cy, COIN_R * spin + 2, COIN_R + 2, 0, 0, Math.PI * 2); ctx.fill();
+			ctx.fillStyle = '#ffd23f';
+			ctx.beginPath(); ctx.ellipse(cn.x, cy, COIN_R * spin, COIN_R, 0, 0, Math.PI * 2); ctx.fill();
+			ctx.fillStyle = 'rgba(255,255,255,.6)';
+			ctx.fillRect(cn.x - 2 * spin, cy - 6, 3 * spin, 7);
 		}
 
 		// Ground.
@@ -1034,6 +1184,25 @@
 		} else if (this.shaking) {
 			this.canvas.style.transform = '';
 			this.shaking = false;
+		}
+	};
+
+	// Little chevrons on a moving pipe's gap edges so you can see it will move.
+	Game.prototype.drawArrows = function (ctx, p, half) {
+		var cx = p.x + PIPE_W / 2;
+		ctx.fillStyle = 'rgba(255,255,255,.7)';
+		[[p.gapY - half - 30, -1], [p.gapY + half + 30, 1]].forEach(function (a) {
+			ctx.beginPath();
+			ctx.moveTo(cx - 8, a[0] - a[1] * 4); ctx.lineTo(cx + 8, a[0] - a[1] * 4); ctx.lineTo(cx, a[0] + a[1] * 6);
+			ctx.closePath(); ctx.fill();
+		});
+	};
+
+	Game.prototype.sparkle = function (x, y) {
+		if (reducedMotion) { return; }
+		for (var i = 0; i < 8; i++) {
+			var a = (i / 8) * Math.PI * 2;
+			this.particles.push({ x: x, y: y, vx: Math.cos(a) * 110, vy: Math.sin(a) * 110, life: 0.45, r: 2, puff: true, hue: 48 });
 		}
 	};
 

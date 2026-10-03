@@ -204,7 +204,7 @@
 .fb-story { margin: 6px 0 16px; font-size: .95em; line-height: 1.55; text-align: left; opacity: .88; }
 .fb-story-nav { display: flex; justify-content: space-between; margin: 0 0 14px; }
 .fb-chip[disabled] { opacity: .3; cursor: default; }
-.fb-link-row { display: flex; justify-content: center; gap: 4px; }
+.fb-link-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 4px; }
 .fb-toast {
 	position: absolute; left: 50%; bottom: 84px; z-index: 2;
 	max-width: 80%; padding: 8px 14px;
@@ -322,3 +322,13 @@
 	color: var(--fb-surface); background: var(--fb-accent);
 	border-radius: 999px; pointer-events: none; z-index: 2;
 }
+
+/* ---- Daily goals ---- */
+.fb-goals { margin: 10px 0 8px; padding: 0; list-style: none; text-align: left; }
+.fb-goals li { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid color-mix(in srgb, var(--fb-ink) 10%, transparent); font-size: .92em; }
+.fb-goals li:first-child { border-top: 0; }
+.fb-goal-mark { flex: none; width: 20px; height: 20px; display: grid; place-items: center; font-size: .8em; font-weight: 800; color: var(--fb-surface); border: 1.5px solid color-mix(in srgb, var(--fb-ink) 30%, transparent); border-radius: 50%; }
+.fb-goals .is-done .fb-goal-mark { background: var(--fb-accent); border-color: var(--fb-accent); }
+.fb-goals .is-done .fb-goal-text { opacity: .55; text-decoration: line-through; }
+.fb-goal-text { flex: 1; }
+.fb-goals small { opacity: .6; font-variant-numeric: tabular-nums; }

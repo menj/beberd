@@ -72,6 +72,7 @@
 		},
 		hit: function () { noise(0.2, 0.5, 2000, 200); tone('sine', 190, 50, 0.28, 0.5); },
 		die: function () { tone('sawtooth', 420, 70, 0.5, 0.16); },
+		coin: function () { var t = ctx.currentTime; tone('square', 988, 988, 0.06, 0.07, t); tone('square', 1319, 1319, 0.13, 0.07, t + 0.06); },
 		swoosh: function () { noise(0.28, 0.25, 400, 3200); }
 	};
 
