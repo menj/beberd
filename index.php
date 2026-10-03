@@ -45,6 +45,7 @@ $config = [
     'music'       => (bool) $s['music'],
     'today'       => $standalone ? null : fb_today(),
     'arcadeUrl'   => $arcadeUrl,
+    'publicUrl'   => $standalone ? '' : $publicUrl,
     'startMode'   => ($_GET['mode'] ?? '') === 'daily' ? 'daily' : 'classic', // app shortcut / deep link
 ];
 ?>

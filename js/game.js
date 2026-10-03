@@ -429,7 +429,11 @@
 				btnRow.appendChild(this.dailyButton(true));
 			}
 			c.appendChild(btnRow);
-			c.appendChild(this.linkRow());
+			var shareStatus = el('p', 'fb-status');
+			shareStatus.setAttribute('role', 'status');
+			this.shareStatus = shareStatus;
+			c.appendChild(this.linkRow(true));
+			c.appendChild(shareStatus);
 			if (CFG.arcadeUrl) {
 				var more = el('a', 'fb-btn fb-btn-link', 'More games \u203a');
 				more.href = CFG.arcadeUrl;
@@ -443,7 +447,7 @@
 
 	Game.prototype.assistOn = function () { return store('fb_assist') === '1'; };
 
-	Game.prototype.linkRow = function () {
+	Game.prototype.linkRow = function (withShare) {
 		var self = this, pr = progress();
 		var row = el('div', 'fb-link-row');
 		var open = CHAPTERS.filter(function (c) { return isUnlocked(c, pr); }).length;
@@ -463,6 +467,20 @@
 		assist.title = 'Wider gaps and slower pipes. Assisted runs don\u2019t count toward bests, medals or the leaderboard.';
 		assist.addEventListener('click', function () { store('fb_assist', self.assistOn() ? '0' : '1'); self.showOverlay(self.overlayName, self.lastOver); });
 		row.appendChild(assist);
+		var gh = this.loadGhost('fb_ghost_classic');
+		if (gh) {
+			var rm = el('button', 'fb-btn fb-btn-link', 'Rematch ' + gh.score);
+			rm.type = 'button';
+			rm.title = 'Race the ghost of your best classic run on the same course.';
+			rm.addEventListener('click', function () { self.rematch(); });
+			row.appendChild(rm);
+		}
+		if (withShare) {
+			var sh = el('button', 'fb-btn fb-btn-link', 'Share');
+			sh.type = 'button';
+			sh.addEventListener('click', function () { self.shareResult(self.shareStatus || (self.shareStatus = el('span'))); });
+			row.appendChild(sh);
+		}
 		return row;
 	};
 
@@ -787,11 +805,16 @@
 	Game.prototype.reset = function () {
 		this.bird = { y: H * 0.42, vy: 0, rot: 0, anim: 99, sq: 0 };
 		// Every run is seeded (classic gets a random seed) so it can be replayed exactly.
+		// A rematch reuses the ghost's seed so the course is identical.
+		if (this.pendingGhost && this.mode !== 'daily') { this.nextSeed = this.pendingGhost.seed; }
 		this.seed = this.mode === 'daily' ? seedFrom('flying-bird:' + this.day) : (this.nextSeed !== undefined ? this.nextSeed : (Math.random() * 4294967296) >>> 0);
 		this.nextSeed = undefined;
 		this.rng = mulberry32(this.seed);
 		this.stepNo = 0; this.flaps = []; this.replay = null;
 		this.ghostTrace = [];
+		// The ghost of your best run on this exact course: automatic in the daily challenge, via Rematch in classic.
+		this.ghost = this.mode === 'daily' ? this.loadGhost('fb_ghost_daily_' + this.day) : this.pendingGhost;
+		this.pendingGhost = null;
 		this.shake = this.flash = this.pop = this.freeze = 0;
 		this.cheated = this.god; // a run that starts in god mode is never recorded
 		this.coins = 0; this.coinList = []; this.spawned = 0; this.movingPassed = 0; this.goalsHit = [];
@@ -813,10 +836,13 @@
 		store('fb_story_seen', '1');
 		this.storyIntro = false;
 		// The daily challenge is always Normal so everyone flies the same course.
-		this.diff = this.mode === 'daily' ? DIFFICULTY.normal : this.baseDiff;
+		// A rematch replays an earlier run's course, so it must use that run's difficulty and is never assisted.
+		this.forceDiff = this.pendingGhost && this.mode !== 'daily' ? this.pendingGhost.diff : null;
+		this.runDiffName = this.mode === 'daily' ? 'normal' : (this.forceDiff || this.diffName);
+		this.diff = this.mode === 'daily' ? DIFFICULTY.normal : (this.forceDiff ? DIFFICULTY[this.forceDiff] : this.baseDiff);
 		// Assist mode (not available in the daily challenge, which must be the same for everyone):
 		// wider gaps and a slower scroll. Such runs never count toward bests, medals or the leaderboard.
-		this.assisted = this.assistOn() && this.mode !== 'daily';
+		this.assisted = this.assistOn() && this.mode !== 'daily' && !this.pendingGhost;
 		if (this.assisted) { this.diff = { gap: this.diff.gap * 1.2, speed: this.diff.speed * 0.85 }; }
 		this.stage.classList.toggle('is-assist', this.assisted);
 		this.reset();
@@ -989,7 +1015,8 @@
 		if (!this.assisted) {
 			var deltas = [], prevStep = 0;
 			for (var fi = 0; fi < this.flaps.length; fi++) { deltas.push(this.flaps[fi] - prevStep); prevStep = this.flaps[fi]; }
-			this.replay = { v: 1, seed: this.seed, mode: this.mode, day: this.mode === 'daily' ? this.day : '', difficulty: this.mode === 'daily' ? 'normal' : this.diffName, steps: this.stepNo, flaps: deltas, score: this.score };
+			this.saveGhost();
+			this.replay = { v: 1, seed: this.seed, mode: this.mode, day: this.mode === 'daily' ? this.day : '', difficulty: this.runDiffName, steps: this.stepNo, flaps: deltas, score: this.score };
 		}
 
 		// Run totals for goals and the coin stat (cheat runs returned above).
@@ -1118,6 +1145,7 @@
 		if (this.state !== 'playing') { return; }
 
 		this.stepNo++;
+		if ((this.stepNo & 1) === 0) { this.ghostTrace.push(Math.round(this.bird.y)); }
 		this.playMs += dt * 1000; // real time, so slow-mo can never make a score look too fast
 		// Power-up timers run in real time; slow-mo then stretches the world's time.
 		this.invuln = Math.max(0, this.invuln - dt);
@@ -1360,6 +1388,7 @@
 		}
 		ctx.globalAlpha = 1;
 
+		this.drawGhost(ctx);
 		this.drawBird(ctx);
 		this.drawComic(ctx);
 
@@ -1519,6 +1548,123 @@
 			return BEAT[Math.floor(performance.now() / 130) % 4];
 		}
 		return b.anim < 0.3 ? BEAT[Math.min(3, Math.floor(b.anim / 0.075))] : 'mid';
+	};
+
+	/* ---------- Ghost replays ---------- */
+
+	Game.prototype.ghostKey = function () { return this.mode === 'daily' ? 'fb_ghost_daily_' + this.day : 'fb_ghost_classic'; };
+
+	Game.prototype.loadGhost = function (key) {
+		try {
+			var g = JSON.parse(store(key) || 'null');
+			return g && Array.isArray(g.trace) && g.trace.length > 4 ? g : null;
+		} catch (e) { return null; }
+	};
+
+	/** Keep the trace of your best run on this course (assisted and god-mode runs never get here). */
+	Game.prototype.saveGhost = function () {
+		if (this.score < 3 || this.stepNo > 20000) { return; }
+		var key = this.ghostKey(), old = this.loadGhost(key);
+		if (old && this.score <= old.score) { return; }
+		store(key, JSON.stringify({ score: this.score, seed: this.seed, diff: this.runDiffName, trace: this.ghostTrace }));
+	};
+
+	/** Race the ghost of your best classic run on its own course. */
+	Game.prototype.rematch = function () {
+		var g = this.loadGhost('fb_ghost_classic');
+		if (!g) { return; }
+		this.pendingGhost = g;
+		this.begin('classic');
+	};
+
+	Game.prototype.drawGhost = function (ctx) {
+		var gh = this.ghost, spr = this.sprites;
+		if (!gh || !spr || (this.state !== 'playing' && this.state !== 'paused')) { return; }
+		var gi = this.stepNo / 2, tr = gh.trace;
+		if (gi >= tr.length - 1) { return; } // the ghost's run has ended
+		var i0 = Math.floor(gi), gy = tr[i0] + (tr[i0 + 1] - tr[i0]) * (gi - i0);
+		ctx.save();
+		ctx.globalAlpha = 0.38;
+		ctx.translate(BIRD_X, gy);
+		ctx.imageSmoothingEnabled = false;
+		ctx.drawImage(spr.mid, -8 * 3, -9.5 * 3, FBSprite.width * 3, FBSprite.height * 3);
+		ctx.restore();
+		ctx.globalAlpha = 0.55;
+		ctx.fillStyle = this.pal.ink;
+		ctx.font = '700 11px ' + (getComputedStyle(this.root).fontFamily || 'sans-serif');
+		ctx.textAlign = 'center';
+		ctx.fillText('BEST ' + gh.score, BIRD_X, gy - 34);
+		ctx.globalAlpha = 1;
+	};
+
+	/* ---------- Share card ---------- */
+
+	/** Draw a 1080x1350 image of this result and resolve with a PNG blob. */
+	Game.prototype.renderShareCard = function () {
+		var W2 = 1080, H2 = 1350, P = this.pal, spr = this.sprites;
+		var cv = document.createElement('canvas');
+		cv.width = W2; cv.height = H2;
+		var x = cv.getContext('2d'), font = getComputedStyle(this.root).fontFamily || 'sans-serif';
+		var sky = x.createLinearGradient(0, 0, 0, H2);
+		sky.addColorStop(0, P.bg1); sky.addColorStop(1, P.bg2);
+		x.fillStyle = sky; x.fillRect(0, 0, W2, H2);
+		// soft hills
+		[[0.78, 0.5, 70, 0.006], [0.88, 0.85, 50, 0.01]].forEach(function (h) {
+			x.globalAlpha = h[1]; x.fillStyle = P.hill; x.beginPath(); x.moveTo(0, H2);
+			for (var px = 0; px <= W2; px += 12) { x.lineTo(px, H2 * h[0] + Math.sin(px * h[3] + h[0] * 9) * h[2]); }
+			x.lineTo(W2, H2); x.closePath(); x.fill();
+		});
+		x.globalAlpha = 1;
+		x.textAlign = 'center';
+		x.fillStyle = P.ink;
+		x.font = '800 64px ' + font; x.fillText(APP.toUpperCase(), W2 / 2, 120);
+		var sub = this.mode === 'daily' ? 'Daily challenge \u00b7 ' + this.dayLabel() : 'Level ' + this.level;
+		x.globalAlpha = 0.7; x.font = '600 40px ' + font; x.fillText(sub, W2 / 2, 184); x.globalAlpha = 1;
+		// Hamilton, mid-bonk
+		if (spr) {
+			x.imageSmoothingEnabled = false;
+			x.drawImage(spr.dead || spr.mid, W2 / 2 - 150, 250, 20 * 15, 18 * 15);
+		}
+		x.font = '900 340px ' + font; x.fillStyle = P.ink;
+		x.fillText(String(this.score), W2 / 2, 820);
+		x.globalAlpha = 0.6; x.font = '700 38px ' + font; x.fillText('POINTS', W2 / 2, 880); x.globalAlpha = 1;
+		var medal = this.assisted ? null : medalFor(this.score);
+		if (medal) {
+			var mc = { bronze: ['#f0b27a', '#b9692f'], silver: ['#f4f6f8', '#a9b3bd'], gold: ['#ffe680', '#d9a21b'] }[medal.key];
+			var mg = x.createRadialGradient(W2 / 2 - 14, 975, 8, W2 / 2, 990, 70); mg.addColorStop(0, mc[0]); mg.addColorStop(1, mc[1]);
+			x.fillStyle = mg; x.beginPath(); x.arc(W2 / 2, 990, 64, 0, Math.PI * 2); x.fill();
+			x.fillStyle = 'rgba(0,0,0,.55)'; x.font = '800 22px ' + font; x.fillText(medal.label.toUpperCase(), W2 / 2, 997);
+		}
+		// the joke, wrapped
+		x.fillStyle = P.ink; x.globalAlpha = 0.85; x.font = 'italic 600 42px ' + font;
+		var words = (this.quip || '').split(' '), line = '', ly = medal ? 1120 : 1040;
+		words.forEach(function (w) {
+			var test = line ? line + ' ' + w : w;
+			if (x.measureText(test).width > W2 - 200 && line) { x.fillText(line, W2 / 2, ly); ly += 56; line = w; } else { line = test; }
+		});
+		if (line) { x.fillText(line, W2 / 2, ly); }
+		x.globalAlpha = 0.65; x.font = '600 34px ' + font; x.fillText(this.shareUrl().replace(/^https?:\/\//, ''), W2 / 2, H2 - 56); x.globalAlpha = 1;
+		return new Promise(function (resolve) { cv.toBlob(resolve, 'image/png'); });
+	};
+
+	Game.prototype.shareUrl = function () { return CFG.publicUrl || (location.origin + location.pathname.replace(/[^/]*$/, '')); };
+
+	Game.prototype.shareResult = function (status) {
+		var self = this, text = APP + ': I scored ' + this.score + (this.mode === 'daily' ? ' in the daily challenge' : ' (level ' + this.level + ')') + ' as Hamilton. Can you beat it? ' + this.shareUrl();
+		status.textContent = '\u2026';
+		return this.renderShareCard().then(function (blob) {
+			var file = new File([blob], 'beberd-score.png', { type: 'image/png' });
+			if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+				return navigator.share({ files: [file], title: APP, text: text, url: self.shareUrl() }).then(function () { status.textContent = 'Shared'; }, function () { status.textContent = ''; });
+			}
+			// No native sharing (most desktops): save the picture and copy the text.
+			var a = document.createElement('a');
+			a.href = URL.createObjectURL(blob); a.download = 'beberd-score.png';
+			document.body.appendChild(a); a.click(); a.remove();
+			setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+			if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).catch(function () {}); }
+			status.textContent = 'Image saved \u00b7 text copied';
+		});
 	};
 
 	/** Which face Hamilton is pulling right now (null = the default one). */

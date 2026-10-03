@@ -114,6 +114,15 @@ you can't die, Hamilton turns ghostly and leaves a rainbow trail. It can be swit
 * It is a client-side convenience, not a security boundary: someone who edits the page's JavaScript could change their own
   local game, which is why scores are also sanity-checked on the server.
 
+## Ghosts and share cards
+
+* **Ghost replays:** your best run on a course is saved in the browser (a few KB) and replayed as a translucent "BEST" bird
+  next to you. In the **daily challenge** it appears automatically (everyone flies the same course); in classic, press
+  **Rematch** to replay your best classic run's exact course against its ghost. Assisted and god-mode runs never create ghosts.
+* **Share card:** the **Share** button on the game-over card renders a 1080x1350 picture (Hamilton's expression, score,
+  level or daily date, medal, the joke and your link) and hands it to the phone's native share sheet; on desktops it saves
+  the image and copies the message.
+
 ## Hamilton has feelings
 
 Hamilton reacts to what happens, not just to crashes: heart eyes for a coin, a happy arc for a cleared pipe or level-up,
@@ -190,3 +199,11 @@ sw.js, manifest.webmanifest, js/pwa.js, icons/   offline + install
 * Delete `install.php` after set-up if you like. It already refuses to run once installed.
 
 Licensed under Apache-2.0.
+
+## Credits
+
+Beberd started life as a fork of [Flying-Bird-Vanilla-JS](https://github.com/manoharys/Flying-Bird-Vanilla-JS) by
+manoharys, a small DOM-based flappy-bird demo licensed under Apache-2.0. The game has since been rewritten from scratch
+(canvas engine, PHP back end, installer, admin, replays and everything else), but the original idea and licence carry on.
+Hamilton, the story and the art are original to this project.
+
