@@ -1,4 +1,4 @@
-# Flying Bird
+# Beberd
 
 A minimalist, themeable flappy-style game in plain **PHP, HTML, CSS and JavaScript**.
 It runs **with or without a database**. You play as Hamilton, a pixel-art bird whose wings really flap.
@@ -11,6 +11,18 @@ It runs **with or without a database**. You play as Hamilton, a pixel-art bird w
 | Admin panel (colour scheme, difficulty, scores) | – | yes |
 
 **Supported databases:** MySQL / MariaDB, PostgreSQL and SQLite (all through PDO). Pick one in the installer.
+
+## Verified scores
+
+The leaderboard doesn't trust the browser. Every run is recorded as a seed plus the exact simulation steps at which you
+flapped (the game runs on a fixed 60 steps per second, so the same inputs always give the same run). When you save a
+score, the server **re-plays your run** with a port of the game's physics (`includes/replay.php`) and only accepts a score
+the replay really produces. Edited scores, swapped courses (seeds), shifted flaps, impossible tapping speed, god mode and
+runs on the wrong difficulty are all rejected (the checks run on every submission, about 6 ms each).
+
+Honest limits: a determined attacker can still write a bot that flies a real, legal run, or hunt offline for an easy
+*classic* seed. The **daily challenge** is immune to seed hunting because its seed comes from the date. Keep
+`includes/replay.php` in step with `js/game.js` whenever you change physics, pipes or power-ups.
 
 ## Quick start
 
@@ -40,7 +52,7 @@ working and only the leaderboard is hidden.
 |---|---|---|
 | MySQL / MariaDB | `pdo_mysql` | MySQL 5.7+ / MariaDB 10.3+ (tested on MariaDB 10.11) |
 | PostgreSQL | `pdo_pgsql` | Tested on PostgreSQL 16 |
-| SQLite | `pdo_sqlite` | SQLite 3.24+ (upserts). The file defaults to `data/flying-bird.sqlite`. Prefer a path outside your web root when you can |
+| SQLite | `pdo_sqlite` | SQLite 3.24+ (upserts). The file defaults to `data/beberd.sqlite`. Prefer a path outside your web root when you can |
 
 Also requires PHP 7.4+ with `mbstring`.
 
@@ -102,6 +114,15 @@ you can't die, Hamilton turns ghostly and leaves a rainbow trail. It can be swit
 * It is a client-side convenience, not a security boundary: someone who edits the page's JavaScript could change their own
   local game, which is why scores are also sanity-checked on the server.
 
+## Ghosts and share cards
+
+* **Ghost replays:** your best run on a course is saved in the browser (a few KB) and replayed as a translucent "BEST" bird
+  next to you. In the **daily challenge** it appears automatically (everyone flies the same course); in classic, press
+  **Rematch** to replay your best classic run's exact course against its ghost. Assisted and god-mode runs never create ghosts.
+* **Share card:** the **Share** button on the game-over card renders a 1080x1350 picture (Hamilton's expression, score,
+  level or daily date, medal, the joke and your link) and hands it to the phone's native share sheet; on desktops it saves
+  the image and copies the message.
+
 ## Hamilton has feelings
 
 Hamilton reacts to what happens, not just to crashes: heart eyes for a coin, a happy arc for a cleared pipe or level-up,
@@ -133,6 +154,27 @@ close calls, power-ups, level), and the start and pause cards rotate silly lines
 The layout adapts to desktop, tablet and phone (portrait and landscape), with larger touch targets and
 a tap hint on touch devices.
 
+## Hosting inside an arcade hub
+
+Beberd is built to sit in its own folder under a hub (for example `menj.buzz/arcade/beberd/`) next to other games such as
+Pixel Run, following the same "hub contract":
+
+* **Everything is relative**, and a `<base>` tag makes `/arcade/beberd` (no trailing slash) work too. The admin cookie and
+  service worker are scoped to the folder, and storage keys are prefixed `fb_`, so several games share one domain without
+  clashing. Give each game its own database or SQLite file.
+* **`game.json`** describes the game (title, tagline, thumbnail, icon, share image, features) so a hub can build a card
+  without hard-coding anything. Keep its `version` in step with `FB_VERSION` in `includes/bootstrap.php`.
+* **Admin → General** has *Arcade link* (shows a "‹ Arcade" button and a "More games" link, for example `../`) and
+  *Public address* (used for share previews). Without a database, set `arcade_url` / `public_url` in `config.php`.
+* **Share previews:** Open Graph and Twitter tags use `img/og.png` (1200x630); the card image is `img/thumb.png` (1280x720).
+* **Shared player name:** the name you save is also stored as `arcade_name`, so games that read it can pre-fill it.
+* **`standalone.html`** is a static copy with no PHP, database or leaderboard: `php tools/build-standalone.php >
+  standalone.html` regenerates it. On a static host rename it to `index.html`.
+* **`arcade-hub/`** is a ready-made hub page (static HTML/CSS/JS) that lists every game in `games.json` by reading its
+  `game.json`. Copy its files to `menj.buzz/arcade/` and upload each game into its own folder.
+
+Name: change `FB_APP_NAME` in `includes/bootstrap.php` (and `name` in `manifest.webmanifest` and `game.json`) to rename the game.
+
 ## Project layout
 
 ```
@@ -141,7 +183,8 @@ api.php            leaderboard JSON API   css/site.css   page chrome
 install.php        web installer          css/admin.css  admin panel
 admin.php          tabbed settings        js/game.js     game engine (canvas)
 database/schema.*.sql                     js/sprite.js   pixel-art bird + wing frames
-includes/          db, settings, bootstrap js/admin.js    admin behaviour
+includes/          db, settings, replay    js/admin.js    admin behaviour
+game.json, img/, tools/, arcade-hub/   arcade hub contract, share images, standalone build, hub page
 js/audio.js        synthesised sound + music
 sw.js, manifest.webmanifest, js/pwa.js, icons/   offline + install
 ```
@@ -156,3 +199,11 @@ sw.js, manifest.webmanifest, js/pwa.js, icons/   offline + install
 * Delete `install.php` after set-up if you like. It already refuses to run once installed.
 
 Licensed under Apache-2.0.
+
+## Credits
+
+Beberd started life as a fork of [Flying-Bird-Vanilla-JS](https://github.com/manoharys/Flying-Bird-Vanilla-JS) by
+manoharys, a small DOM-based flappy-bird demo licensed under Apache-2.0. The game has since been rewritten from scratch
+(canvas engine, PHP back end, installer, admin, replays and everything else), but the original idea and licence carry on.
+Hamilton, the story and the art are original to this project.
+

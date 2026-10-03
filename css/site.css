@@ -60,3 +60,6 @@ p > .fb-btn { margin-top: 6px; }
 .fb-install { margin-right: 14px; padding: 4px 12px; font: inherit; font-size: .8rem; color: var(--pg-ink); background: transparent; border: 1.5px solid var(--pg-line); border-radius: 999px; cursor: pointer; }
 .fb-install:hover { border-color: var(--pg-ink); }
 [hidden] { display: none !important; }
+
+.fb-arcade { position: fixed; top: max(10px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 5; padding: 6px 12px; font-size: .8rem; font-weight: 600; color: var(--pg-ink); text-decoration: none; background: color-mix(in srgb, var(--pg-card) 85%, transparent); border: 1px solid var(--pg-line); border-radius: 999px; backdrop-filter: blur(6px); }
+.fb-arcade:hover { border-color: var(--pg-ink); }

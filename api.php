@@ -1,7 +1,7 @@
 <?php
 /**
  * JSON API:  GET  api.php[?mode=daily&day=YYYY-MM-DD] -> top scores
- *            POST api.php -> save a score  {name, score, duration, mode, day}
+ *            POST api.php -> save a score  {name, score, replay:{seed, mode, day, difficulty, steps, flaps}}
  */
 
 declare(strict_types=1);
@@ -43,35 +43,39 @@ try {
         fb_json(403, ['message' => 'Session expired. Reload the page.']);
     }
 
-    $in       = json_decode((string) file_get_contents('php://input'), true);
-    $score    = is_array($in) ? (int) ($in['score'] ?? 0) : 0;
-    $duration = is_array($in) ? (int) ($in['duration'] ?? 0) : 0;
-    if ($score < 1 || $score > 100000) {
-        fb_json(400, ['message' => 'Invalid score.']);
-    }
-    // Plausibility: nobody clears a pipe faster than ~0.7 s on average.
-    if ($duration < $score * 700) {
-        fb_json(400, ['message' => 'That score could not be verified.']);
+    $in = json_decode((string) file_get_contents('php://input'), true);
+    if (!is_array($in)) {
+        fb_json(400, ['message' => 'Invalid request.']);
     }
 
-    $mode = is_array($in) && ($in['mode'] ?? '') === 'daily' ? 'daily' : 'classic';
-    $day  = is_array($in) ? (string) ($in['day'] ?? '') : '';
-    if ($mode === 'daily' && !fb_day_valid($day)) {
-        fb_json(400, ['message' => "That daily challenge has ended."]);
+    // The server re-plays the run from its seed and flaps; only a score the replay really
+    // produces is accepted, so edited scores, god mode and impossible runs are rejected.
+    $replay = isset($in['replay']) && is_array($in['replay']) ? $in['replay'] : null;
+    if ($replay === null) {
+        fb_json(400, ['message' => 'Please reload the page to update the game.']);
     }
+    $check = fb_replay_verify($replay, (string) $s['difficulty']);
+    if (!$check['ok'] || $check['score'] < 1 || (int) ($in['score'] ?? -1) !== $check['score']) {
+        error_log('Beberd: rejected run (' . ($check['error'] ?? 'score mismatch') . ')');
+        fb_json(400, ['message' => 'That run could not be verified.']);
+    }
+    $score    = $check['score'];
+    $duration = (int) round($check['steps'] * 1000 / 60);
+    $mode     = $replay['mode'] === 'daily' ? 'daily' : 'classic';
+    $day      = $mode === 'daily' ? (string) $replay['day'] : '';
 
     $ipHash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . fb_config()['salt']);
     if (fb_scores_recent_from($ipHash, 5)) {
         fb_json(429, ['message' => 'Slow down a little.']);
     }
 
-    $name = is_array($in) ? (string) ($in['name'] ?? '') : '';
+    $name = (string) ($in['name'] ?? '');
     $name = trim(preg_replace('/[\x00-\x1F\x7F<>]/u', '', $name) ?? '');
     $name = $name !== '' ? mb_substr($name, 0, 24) : 'Anonymous';
 
     fb_scores_add($name, $score, $duration, $ipHash, $mode, $day);
     fb_json(200, ['scores' => fb_scores_top((int) $s['leaderboard_size'], $mode, $day)]);
 } catch (Throwable $e) {
-    error_log('Flying Bird API: ' . $e->getMessage());
+    error_log('Beberd API: ' . $e->getMessage());
     fb_json(500, ['message' => 'Server error.']);
 }

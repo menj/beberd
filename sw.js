@@ -1,11 +1,11 @@
 /*
- * Flying Bird service worker: makes the game installable and playable offline.
+ * Beberd service worker: makes the game installable and playable offline.
  * - Pages: network first, falling back to the last cached copy.
  * - Static assets (css/js/icons): stale-while-revalidate.
  * - api.php, admin.php and install.php are never cached.
  * Bump VERSION to force clients to refresh their cache.
  */
-const VERSION = 'fb-v4';
+const VERSION = 'fb-v5';
 const SHELL = [
 	'./', 'css/game.css', 'css/site.css', 'js/game.js', 'js/sprite.js', 'js/audio.js', 'js/pwa.js',
 	'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'

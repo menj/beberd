@@ -1,4 +1,4 @@
--- Flying Bird schema for SQLite. {prefix} is replaced by the installer.
+-- Beberd schema for SQLite. {prefix} is replaced by the installer.
 -- (The mode/day index is created by the migration step in includes/db.php.)
 -- Every statement is idempotent. Dates are stored as UTC text ("Y-m-d H:i:s" / "Y-m-d").
 

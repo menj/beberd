@@ -1,4 +1,4 @@
--- Flying Bird schema. {prefix} is replaced by the installer.
+-- Beberd schema. {prefix} is replaced by the installer.
 -- Every statement is idempotent, so this file can be re-run safely.
 
 CREATE TABLE IF NOT EXISTS `{prefix}settings` (

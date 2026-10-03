@@ -1,6 +1,6 @@
 {
-  "name": "Flying Bird",
-  "short_name": "Flying Bird",
+  "name": "Beberd",
+  "short_name": "Beberd",
   "description": "Help Hamilton fly through the pipes. Works offline.",
   "id": "./",
   "start_url": "./?source=pwa",

@@ -161,7 +161,7 @@ function fb_db_ok(): bool
                 $r['ok'] = true;
             } catch (Throwable $e) {
                 unset($r['pdo']);
-                error_log('Flying Bird: database unavailable: ' . $e->getMessage());
+                error_log('Beberd: database unavailable: ' . $e->getMessage());
             }
         }
     }

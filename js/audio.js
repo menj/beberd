@@ -1,5 +1,5 @@
 /*
- * Flying Bird – synthesised audio (Web Audio, no files to download).
+ * Beberd – synthesised audio (Web Audio, no files to download).
  * Sound effects plus a quiet pentatonic loop whose tempo rises with the score.
  * Browsers only allow audio after a tap/keypress, so call FBAudio.unlock()
  * from a user gesture.

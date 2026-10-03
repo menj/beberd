@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "beberd",
+  "title": "Beberd",
+  "tagline": "Help Hamilton cross the Great Pipes.",
+  "description": "A tiny pixel bird, a story, power-ups, daily challenges, a wardrobe and an optional verified leaderboard. Flap through endless pipes that get a little harder every level.",
+  "version": "2.0.0",
+  "url": "./",
+  "standalone": "standalone.html",
+  "thumbnail": "img/thumb.png",
+  "icon": "icons/icon-192.png",
+  "shareImage": "img/og.png",
+  "themeColor": "#0b1026",
+  "tags": ["arcade", "flappy", "pixel-art", "endless", "daily-challenge"],
+  "players": 1,
+  "input": { "keyboard": true, "touch": true, "gamepad": true },
+  "features": ["leaderboard", "daily-challenge", "stories", "power-ups", "wardrobe", "offline-play", "verified-scores"],
+  "requires": { "php": "optional", "database": "optional" }
+}
