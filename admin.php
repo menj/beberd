@@ -220,7 +220,8 @@ function fb_input_name(string $field): string
                 <?php endforeach; ?>
                 <p class="fb-muted">Controls gap size and scroll speed.</p></div>
             <div class="fb-field"><span class="fb-label">Sound</span>
-                <label class="fb-check"><input type="checkbox" name="<?= fb_input_name('sound') ?>" value="1" <?= $s['sound'] ? 'checked' : '' ?>> On by default (players can mute with M)</label></div>
+                <label class="fb-check"><input type="checkbox" name="<?= fb_input_name('sound') ?>" value="1" <?= $s['sound'] ? 'checked' : '' ?>> On by default (players can mute with M)</label>
+                <label class="fb-check"><input type="checkbox" name="<?= fb_input_name('music') ?>" value="1" <?= $s['music'] ? 'checked' : '' ?>> Background music (speeds up as the score climbs)</label></div>
             <?php $close();
 
         elseif ($tab === 'scores'):
@@ -230,13 +231,14 @@ function fb_input_name(string $field): string
             $rows = fb_scores_page($per, $page); ?>
             <p class="fb-muted"><?= number_format($total) ?> score<?= $total === 1 ? '' : 's' ?> recorded.</p>
             <table class="fb-table">
-                <thead><tr><th>Player</th><th>Score</th><th>Date (UTC)</th><th></th></tr></thead>
+                <thead><tr><th>Player</th><th>Score</th><th>Mode</th><th>Date (UTC)</th><th></th></tr></thead>
                 <tbody>
-                <?php if (!$rows): ?><tr><td colspan="4" class="fb-muted">No scores yet.</td></tr><?php endif; ?>
+                <?php if (!$rows): ?><tr><td colspan="5" class="fb-muted">No scores yet.</td></tr><?php endif; ?>
                 <?php foreach ($rows as $r): ?>
                     <tr>
                         <td><?= fb_h($r['player_name']) ?></td>
                         <td><strong><?= (int) $r['score'] ?></strong></td>
+                        <td><?= $r['mode'] === 'daily' ? 'Daily ' . fb_h($r['day']) : 'Classic' ?></td>
                         <td><?= fb_h($r['created_at']) ?></td>
                         <td class="fb-right"><form method="post"><?= fb_csrf_field() ?><input type="hidden" name="action" value="delete_score"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>"><button class="fb-link-btn fb-danger-text">Delete</button></form></td>
                     </tr>

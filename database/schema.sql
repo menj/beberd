@@ -22,8 +22,11 @@ CREATE TABLE IF NOT EXISTS `{prefix}scores` (
   `score`       INT UNSIGNED    NOT NULL DEFAULT 0,
   `duration_ms` INT UNSIGNED    NOT NULL DEFAULT 0,
   `ip_hash`     CHAR(64)        NOT NULL DEFAULT '',
+  `mode`        VARCHAR(10)     NOT NULL DEFAULT 'classic',
+  `day`         DATE            NULL,
   `created_at`  DATETIME        NOT NULL,
   PRIMARY KEY (`id`),
   KEY `score` (`score`),
+  KEY `mode_day_score` (`mode`, `day`, `score`),
   KEY `ip_created` (`ip_hash`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
