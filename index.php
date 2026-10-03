@@ -5,15 +5,17 @@ require __DIR__ . '/includes/bootstrap.php';
 
 fb_security_headers();
 
-// The game runs with or without a database. Without one, defaults apply,
-// scores stay in the browser, and ?scheme= / ?difficulty= still work.
+// The game runs with or without a database. Without one, defaults apply and
+// scores stay in the browser. ?scheme= / ?difficulty= preview a look either way.
 $hasDb  = fb_db_ok();
 $s      = fb_settings();
-if (!$hasDb) {
-    $q = $_GET['scheme'] ?? '';
-    $s['scheme'] = is_string($q) && isset(fb_schemes()[$q]) && $q !== 'custom' ? $q : $s['scheme'];
-    $q = $_GET['difficulty'] ?? '';
-    $s['difficulty'] = is_string($q) && isset(fb_difficulties()[$q]) ? $q : $s['difficulty'];
+$q = $_GET['scheme'] ?? '';
+if (is_string($q) && isset(fb_schemes()[$q]) && ($q !== 'custom' || $hasDb)) {
+    $s['scheme'] = $q;
+}
+$q = $_GET['difficulty'] ?? '';
+if (is_string($q) && isset(fb_difficulties()[$q])) {
+    $s['difficulty'] = $q;
 }
 $scheme = $s['scheme'];
 $style  = $scheme === 'custom' ? fb_custom_style($s['custom']) : '';

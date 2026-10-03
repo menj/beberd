@@ -105,7 +105,9 @@
 	justify-content: space-between;
 	align-items: center;
 	pointer-events: none;
+	z-index: 3; /* above the overlays so sound stays reachable on every screen */
 }
+.fb-btn-icon[hidden] { display: none; }
 .fb-hud .fb-btn-icon { pointer-events: auto; }
 
 .fb-btn-icon {
@@ -134,9 +136,10 @@
 	backdrop-filter: blur(3px);
 	opacity: 0;
 	visibility: hidden;
+	pointer-events: none; /* a closing overlay must never swallow taps */
 	transition: opacity .25s ease, visibility .25s;
 }
-.fb-overlay.is-open { opacity: 1; visibility: visible; }
+.fb-overlay.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
 /* Start screen: dock the card low, keep the sky (and bird) clear. */
 .fb-overlay--dock { align-items: flex-end; padding-bottom: 96px; background: none; backdrop-filter: none; }
 
@@ -215,6 +218,7 @@
 
 /* ---- Touch devices: show tap hint, bigger targets ---- */
 .fb-tap { display: none; }
+.fb-btn, .fb-btn-icon, .fb-form input { touch-action: manipulation; }
 @media (hover: none) and (pointer: coarse) {
 	.fb-keys { display: none; }
 	.fb-tap { display: inline; }
@@ -238,6 +242,7 @@
 	.fb-stats { margin: 6px 0 12px; }
 	.fb-stat b { font-size: 1.6em; }
 	.fb-overlay--dock { padding-bottom: 20px; }
+	.fb-overlay--dock .fb-board { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

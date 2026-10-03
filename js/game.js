@@ -14,7 +14,7 @@
 		gameOver: 'Game over', paused: 'Paused', newBest: 'New best!', yourName: 'Your name',
 		save: 'Save score', saved: 'Score saved', saveFailed: 'Could not save score',
 		leaderboard: 'Leaderboard', noScores: 'No scores yet. Be the first!',
-		hint: 'Tap, click or press Space to flap', mute: 'Mute', unmute: 'Unmute', pause: 'Pause'
+		hint: 'Tap, click or press Space to flap', tagline: 'Help Hamilton fly through the pipes. Tap, click or press Space to flap.', mute: 'Mute', unmute: 'Unmute', pause: 'Pause'
 	}, {});
 	var AUDIO_URL = CFG.audioUrl || './audio/';
 
@@ -54,12 +54,12 @@
 
 	var sfxCache = {};
 	function sfx(name, muted) {
-		if (muted) { return; }
 		var a = sfxCache[name];
 		if (!a) {
 			a = sfxCache[name] = new Audio(AUDIO_URL + 'sfx_' + name + '.wav');
 			a.volume = 0.5;
 		}
+		if (muted) { return; }
 		try {
 			a.currentTime = 0;
 			var p = a.play();
@@ -80,6 +80,7 @@
 		this.reset();
 		this.bind();
 		this.showOverlay('start');
+		this.stage.focus({ preventScroll: true });
 		this.last = performance.now();
 		var self = this;
 		requestAnimationFrame(function tick(now) {
@@ -97,7 +98,7 @@
 		this.stage = el('div', 'fb-stage');
 		this.stage.tabIndex = 0;
 		this.stage.setAttribute('role', 'application');
-		this.stage.setAttribute('aria-label', 'Flying Bird. ' + T.hint);
+		this.stage.setAttribute('aria-label', 'Flying Bird. Hamilton the bird. ' + T.hint);
 
 		this.canvas = el('canvas', 'fb-canvas');
 		this.ctx = this.canvas.getContext('2d');
@@ -125,7 +126,7 @@
 		this.stage.appendChild(this.overlay);
 
 		var hint = el('p', 'fb-hint');
-		hint.innerHTML = '<span class="fb-keys"><kbd>Space</kbd> / click flap · <kbd>P</kbd> pause · <kbd>M</kbd> mute · <kbd>R</kbd> restart</span><span class="fb-tap">Tap to flap</span>';
+		hint.innerHTML = '<span class="fb-keys"><kbd>Space</kbd> / click flap · <kbd>P</kbd> pause · <kbd>M</kbd> mute · <kbd>R</kbd> restart</span><span class="fb-tap">Tap to flap · Space also works</span>';
 
 		root.appendChild(this.stage);
 		root.appendChild(hint);
@@ -155,6 +156,7 @@
 		var self = this, c = this.card;
 		c.textContent = '';
 		this.overlayName = name;
+		this.pauseBtn.hidden = !(this.state === 'playing' || this.state === 'paused');
 		this.overlay.classList.toggle('fb-overlay--dock', name === 'start');
 		if (!name) {
 			this.overlay.classList.remove('is-open');
@@ -163,7 +165,7 @@
 		var primary;
 		if (name === 'start') {
 			c.appendChild(el('h2', 'fb-title', 'Flying Bird'));
-			c.appendChild(el('p', 'fb-sub', T.hint));
+			c.appendChild(el('p', 'fb-sub', T.tagline));
 			if (this.best) { c.appendChild(this.stats(null, this.best)); }
 			primary = el('button', 'fb-btn', T.play);
 			primary.type = 'button';
@@ -301,26 +303,43 @@
 	Game.prototype.bind = function () {
 		var self = this;
 
+		// One handler for mouse, touch and pen. Tapping anywhere on the stage flaps;
+		// on the start / game-over / pause screens, tapping outside the card acts too.
 		this.stage.addEventListener('pointerdown', function (e) {
-			if (e.target.closest('.fb-overlay.is-open') || e.target.closest('.fb-btn-icon')) { return; }
+			if (e.button > 0 || !e.isPrimary) { return; }
+			if (e.target.closest('.fb-btn-icon') || e.target.closest('.fb-card')) { return; }
 			e.preventDefault();
-			self.flap();
+			if (self.state === 'paused') { self.resume(); } else { self.flap(); }
 		});
+		// Keep the page from scrolling / zooming / selecting while playing on touch devices.
+		this.stage.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 		this.pauseBtn.addEventListener('click', function () { self.togglePause(); });
 		this.muteBtn.addEventListener('click', function () { self.toggleMute(); });
 
 		this.root.addEventListener('pointerenter', function () { self.hover = true; });
 		this.root.addEventListener('pointerleave', function () { self.hover = false; });
 
+		var single = document.querySelectorAll('.fb-game').length === 1;
 		document.addEventListener('keydown', function (e) {
 			if (e.metaKey || e.ctrlKey || e.altKey) { return; }
-			var active = self.state === 'playing' || self.hover || self.root.contains(document.activeElement);
+			var t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+			if (typing) { return; }
+			var onButton = t && t.tagName === 'BUTTON';
+			// Keys are live when this game is playing, hovered, focused, or is the only game on the page.
+			var active = self.state === 'playing' || self.hover || self.root.contains(document.activeElement) ||
+				(single && (document.activeElement === document.body || !document.activeElement));
 			if (!active) { return; }
 			switch (e.code) {
 				case 'Space': case 'ArrowUp': case 'KeyW':
+					if (onButton && self.state !== 'playing') { return; } // let Space activate a focused button
 					e.preventDefault();
 					if (e.repeat) { return; }
 					if (self.state === 'paused') { self.resume(); } else { self.flap(); }
+					break;
+				case 'Enter': case 'NumpadEnter':
+					if (onButton) { return; }
+					if (self.state === 'ready' || self.state === 'over') { e.preventDefault(); self.flap(); }
+					else if (self.state === 'paused') { e.preventDefault(); self.resume(); }
 					break;
 				case 'KeyP': case 'Escape': self.togglePause(); break;
 				case 'KeyM': self.toggleMute(); break;
@@ -371,7 +390,24 @@
 		this.spawnPipe(W + 120);
 	};
 
+	// iOS/Android only allow audio that was started by a tap; prime the effects once.
+	var audioPrimed = false;
+	function primeAudio() {
+		if (audioPrimed) { return; }
+		audioPrimed = true;
+		['point', 'hit', 'die'].forEach(function (name) {
+			sfx(name, true); // creates the element without sound
+			var a = sfxCache[name];
+			if (!a) { return; }
+			a.muted = true;
+			var p = a.play();
+			var done = function () { a.pause(); a.currentTime = 0; a.muted = false; };
+			if (p && p.then) { p.then(done, function () { a.muted = false; }); } else { done(); }
+		});
+	}
+
 	Game.prototype.begin = function () {
+		primeAudio();
 		this.reset();
 		this.state = 'playing';
 		this.showOverlay(null);

@@ -1,7 +1,7 @@
 # Flying Bird
 
 A minimalist, themeable flappy-style game in plain **PHP, HTML, CSS and JavaScript**.
-It runs **with or without a database**.
+It runs **with or without a database**. You play as Hamilton, a pixel-art bird whose wings really flap.
 
 | | Without a database | With a database |
 |---|---|---|
@@ -17,7 +17,7 @@ php -S localhost:8000
 ```
 
 Open <http://localhost:8000>. That's it, and no set-up is needed to play.
-Without a database you can still try a theme with `?scheme=midnight` or `?difficulty=hard`.
+You can preview a look with `?scheme=midnight` or `?difficulty=hard`.
 
 ## Enabling the leaderboard and settings (optional)
 
