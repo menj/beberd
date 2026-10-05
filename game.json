@@ -3,7 +3,27 @@
   "id": "beberd",
   "title": "Beberd",
   "tagline": "Help Hamilton cross the Great Pipes.",
+  "summary": "Flap Hamilton through endless pipes that get harder every level. Collect coins and power-ups, beat the daily course, unlock hats and a story, and climb a verified leaderboard. Free.",
   "description": "A tiny pixel bird, a story, power-ups, daily challenges, a wardrobe and an optional verified leaderboard. Flap through endless pipes that get a little harder every level.",
+  "badges": [
+    "Daily challenge",
+    "Power-ups",
+    "A story",
+    "Verified scores",
+    "Free to play"
+  ],
+  "tags": [
+    "flappy",
+    "pixel-art",
+    "arcade",
+    "daily-challenge",
+    "leaderboard",
+    "power-ups",
+    "one-button",
+    "mobile-friendly",
+    "browser-game",
+    "free"
+  ],
   "version": "2.0.0",
   "url": "./",
   "standalone": "standalone.html",
@@ -11,9 +31,23 @@
   "icon": "icons/icon-192.png",
   "shareImage": "img/og.png",
   "themeColor": "#0b1026",
-  "tags": ["arcade", "flappy", "pixel-art", "endless", "daily-challenge"],
   "players": 1,
-  "input": { "keyboard": true, "touch": true, "gamepad": true },
-  "features": ["leaderboard", "daily-challenge", "stories", "power-ups", "wardrobe", "offline-play", "verified-scores"],
-  "requires": { "php": "optional", "database": "optional" }
+  "input": {
+    "keyboard": true,
+    "touch": true,
+    "gamepad": true
+  },
+  "features": [
+    "leaderboard",
+    "daily-challenge",
+    "stories",
+    "power-ups",
+    "wardrobe",
+    "offline-play",
+    "verified-scores"
+  ],
+  "requires": {
+    "php": "optional",
+    "database": "optional"
+  }
 }

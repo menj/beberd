@@ -170,8 +170,8 @@ Pixel Run, following the same "hub contract":
 * **Shared player name:** the name you save is also stored as `arcade_name`, so games that read it can pre-fill it.
 * **`standalone.html`** is a static copy with no PHP, database or leaderboard: `php tools/build-standalone.php >
   standalone.html` regenerates it. On a static host rename it to `index.html`.
-* **`arcade-hub/`** is a ready-made hub page (static HTML/CSS/JS) that lists every game in `games.json` by reading its
-  `game.json`. Copy its files to `menj.buzz/arcade/` and upload each game into its own folder.
+* **The hub page** lives in its own repository, [menj/arcade](https://github.com/menj/arcade), which is the dev repo for
+  `menj.buzz/arcade/`. It lists every game by reading its `game.json`; upload this game into the `beberd/` folder beside it.
 
 Name: change `FB_APP_NAME` in `includes/bootstrap.php` (and `name` in `manifest.webmanifest` and `game.json`) to rename the game.
 
@@ -184,7 +184,7 @@ install.php        web installer          css/admin.css  admin panel
 admin.php          tabbed settings        js/game.js     game engine (canvas)
 database/schema.*.sql                     js/sprite.js   pixel-art bird + wing frames
 includes/          db, settings, replay    js/admin.js    admin behaviour
-game.json, img/, tools/, arcade-hub/   arcade hub contract, share images, standalone build, hub page
+game.json, img/, tools/   arcade hub contract, share images, standalone build
 js/audio.js        synthesised sound + music
 sw.js, manifest.webmanifest, js/pwa.js, icons/   offline + install
 ```
