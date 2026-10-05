@@ -675,7 +675,7 @@
 		input.maxLength = 40;
 		input.placeholder = T.yourName;
 		input.setAttribute('aria-label', T.yourName);
-		input.value = store('arcade_name') || store('fb_name') || ''; // one name for every game in the arcade
+		input.value = store('arcade_name') || store('fb_name') || store('pixel_run_name') || ''; // one name across the arcade (pixel_run_name until Pixel Run adopts arcade_name)
 		var btn = el('button', 'fb-btn', T.save);
 		btn.type = 'submit';
 		form.appendChild(input);
@@ -1010,6 +1010,8 @@
 			}, reducedMotion ? 0 : 420);
 			return;
 		}
+
+		this.arcadeRecord();
 
 		// Package the run so the server can re-play it and confirm the score (assisted runs are never submitted).
 		if (!this.assisted) {
@@ -1548,6 +1550,26 @@
 			return BEAT[Math.floor(performance.now() / 130) % 4];
 		}
 		return b.anim < 0.3 ? BEAT[Math.min(3, Math.floor(b.anim / 0.075))] : 'mid';
+	};
+
+	/**
+	 * Shared arcade stats: games on one domain keep a small record under "arcade.stats"
+	 * ({ "<game id>": { best, plays, last, lastPlayed } }) so a hub can show a player's best on each card.
+	 * God-mode runs never get here; assisted runs count as a play but never set a best.
+	 */
+	Game.prototype.arcadeRecord = function () {
+		try {
+			var all = JSON.parse(localStorage.getItem('arcade.stats') || '{}') || {};
+			var st = all.beberd || { best: 0, plays: 0 };
+			st.plays += 1;
+			if (!this.assisted) {
+				st.last = this.score;
+				if (this.score > st.best) { st.best = this.score; }
+			}
+			st.lastPlayed = Date.now();
+			all.beberd = st;
+			localStorage.setItem('arcade.stats', JSON.stringify(all));
+		} catch (e) { /* storage unavailable */ }
 	};
 
 	/* ---------- Ghost replays ---------- */

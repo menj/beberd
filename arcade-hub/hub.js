@@ -12,6 +12,11 @@
 	var tagBox = document.getElementById('hub-tags');
 	var games = [], active = null;
 
+	/** Each game records { best, plays, last, lastPlayed } under arcade.stats[<game id>] (see game.json "id"). */
+	function stats() {
+		try { return JSON.parse(localStorage.getItem('arcade.stats') || '{}') || {}; } catch (e) { return {}; }
+	}
+
 	function el(tag, cls, text) {
 		var n = document.createElement(tag);
 		if (cls) { n.className = cls; }
@@ -41,8 +46,10 @@
 		var body = el('div', 'body');
 		body.appendChild(el('h2', null, g.title));
 		if (g.tagline) { body.appendChild(el('p', null, g.tagline)); }
+		var mine = stats()[g.id];
+		if (mine && mine.best > 0) { body.appendChild(el('p', 'best', 'Your best: ' + mine.best + (mine.plays > 1 ? ' \u00b7 ' + mine.plays + ' plays' : ''))); }
 		var badges = el('div', 'badges');
-		(g.features || []).slice(0, 4).forEach(function (f) { badges.appendChild(el('span', null, nice(f))); });
+		(g.badges && g.badges.length ? g.badges : (g.features || []).map(nice)).slice(0, 4).forEach(function (f) { badges.appendChild(el('span', null, f)); });
 		if (badges.childNodes.length) { body.appendChild(badges); }
 		var play = el('div', 'play');
 		var a = el('a', null, 'Play ›');
@@ -59,7 +66,7 @@
 		grid.textContent = '';
 		var shown = 0;
 		games.forEach(function (g) {
-			var hay = (g.title + ' ' + (g.tagline || '') + ' ' + (g.tags || []).join(' ')).toLowerCase();
+			var hay = (g.title + ' ' + (g.tagline || '') + ' ' + (g.summary || '') + ' ' + (g.tags || []).join(' ')).toLowerCase();
 			if ((q && hay.indexOf(q) === -1) || (active && (g.tags || []).indexOf(active) === -1)) { return; }
 			grid.appendChild(card(g));
 			shown++;

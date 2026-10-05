@@ -21,6 +21,7 @@ body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); f
 .hub-card .body { display: flex; flex: 1; flex-direction: column; gap: 6px; padding: 16px 18px 18px; }
 .hub-card h2 { margin: 0; font-size: 1.25rem; letter-spacing: -.01em; }
 .hub-card p { margin: 0; color: var(--muted); font-size: .92rem; }
+.hub-card p.best { color: var(--accent); font-weight: 700; font-size: .85rem; }
 .hub-card .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .hub-card .badges span { padding: 2px 9px; font-size: .72rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; }
 .hub-card .play { margin-top: auto; padding-top: 10px; }
