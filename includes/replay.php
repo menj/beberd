@@ -14,7 +14,8 @@
 
 declare(strict_types=1);
 
-const FBR_W = 420, FBR_H = 640, FBR_GROUND = 64;
+const FBR_W = 960, FBR_H = 640, FBR_GROUND = 64;
+const FBR_START_X = 540; // first pipe: same distance from the bird as always (js/game.js START_X)
 const FBR_BIRD_X = 110, FBR_BIRD_R = 15;
 const FBR_GRAVITY = 1500, FBR_FLAP = -430, FBR_MAX_FALL = 620;
 const FBR_PIPE_W = 62, FBR_PIPE_SPACING = 224, FBR_POWER_R = 13;
@@ -83,7 +84,7 @@ final class FB_Sim
         $this->y        = FBR_H * 0.42;
         $this->vy       = (float) FBR_FLAP; // a run starts with a flap
         $this->lastGapY = (FBR_H - FBR_GROUND) / 2;
-        $this->spawnPipe(FBR_W + 120);
+        for ($sx = (float) FBR_START_X; $sx <= FBR_W + 40; $sx += FBR_PIPE_SPACING) { $this->spawnPipe($sx); } // fill the world ahead of the bird
     }
 
     /** mulberry32 from js/game.js */

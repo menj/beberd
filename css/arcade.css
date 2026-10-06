@@ -79,3 +79,17 @@
 .fb-arcade-page .fb-footer { font-family: var(--arc-font); letter-spacing: .08em; }
 .fb-arcade-page .fb-footer a { color: var(--arc-muted); }
 .fb-arcade-page .fb-install { font-family: var(--arc-font); letter-spacing: .1em; text-transform: uppercase; color: var(--arc-cool); border-color: color-mix(in srgb, var(--arc-cool) 40%, transparent); }
+
+/* wide screens: the stage fills the framed cabinet edge to edge, like the other games in the arcade.
+   The cabinet is as wide as the stage (up to 960px), so on a short screen it shrinks with it. */
+@media (min-width: 720px) and (min-aspect-ratio: 5/4) {
+	.fb-arcade-page { --arc-chrome: 190px; }
+	.fb-arcade-page .fb-cabinet {
+		padding: 0; overflow: hidden;
+		width: min(960px, 100%, calc((100vh - var(--arc-chrome)) * 1.5 + 2px));
+		width: min(960px, 100%, calc((100dvh - var(--arc-chrome)) * 1.5 + 2px));
+	}
+	.fb-arcade-page .fb-stage { border-radius: 0; box-shadow: none; }
+	.fb-arcade-page .fb-hint { margin-top: 0; padding: 10px 0; }
+	.fb-arcade-page .fb-game { --fb-chrome: var(--arc-chrome); }
+}
