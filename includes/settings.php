@@ -10,7 +10,6 @@ declare(strict_types=1);
 function fb_schemes(): array
 {
     return [
-        'neon'     => 'Neon (matches the arcade)',
         'auto'     => 'Auto (follows visitor)',
         'dawn'     => 'Dawn',
         'midnight' => 'Midnight',
@@ -62,7 +61,7 @@ function fb_setting_defaults(): array
         'leaderboard_size' => 10,
         'arcade_url'       => '../',
         'public_url'       => '',
-        'scheme'           => 'neon',
+        'scheme'           => 'dawn',
         'custom'           => [
             'bg1' => '#cfe8ff', 'bg2' => '#fff1de', 'hill' => '#b9d4c3', 'pipe' => '#3d8b6e',
             'bird' => '#ffd23f', 'beak' => '#ff6b35', 'accent' => '#2f6fed', 'ink' => '#14213d', 'surface' => '#ffffff',
@@ -112,7 +111,7 @@ function fb_settings_sanitize(string $tab, array $in, array $current): array
 
         case 'appearance':
             $scheme = (string) ($in['scheme'] ?? 'auto');
-            $current['scheme'] = isset(fb_schemes()[$scheme]) ? $scheme : 'neon';
+            $current['scheme'] = isset(fb_schemes()[$scheme]) ? $scheme : 'dawn';
             foreach (array_keys(fb_colour_fields()) as $key) {
                 $hex = $in['custom'][$key] ?? '';
                 if (is_string($hex) && preg_match('/^#[0-9a-fA-F]{6}$/', $hex)) {

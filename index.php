@@ -70,7 +70,7 @@ $config = [
     <meta name="twitter:description" content="<?= fb_h($shareDesc) ?>">
     <meta name="twitter:image" content="<?= fb_h($publicUrl) ?>img/og.png">
     <meta name="color-scheme" content="light dark">
-    <meta name="theme-color" content="#0a0820">
+    <meta name="theme-color" content="#f5f6f8">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
