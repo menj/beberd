@@ -1,0 +1,95 @@
+/* Arcade look: the light look shared by the Arcade Hub and every game (menj.buzz/arcade/).
+   Loaded after site.css on the game page only; the installer and admin keep their plain
+   look. Colours inside the game come from the colour scheme in game.css (default Dawn). */
+
+@font-face {
+	font-family: "Special Elite";
+	src: url("../fonts/SpecialElite-Regular.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+.fb-arcade-page {
+	--arc-bg: #f5f6f8; --arc-bg-2: #d7e8ff; --arc-hot: #2f6fed; --arc-cool: #3d8b6e;
+	--arc-text: #14213d; --arc-muted: #6b7280;
+	--arc-font: "Special Elite", "Courier New", Courier, monospace;
+	--pg-bg: var(--arc-bg); --pg-card: #ffffff; --pg-ink: var(--arc-text); --pg-muted: var(--arc-muted);
+	--pg-line: #e4e6eb; --pg-accent: var(--arc-hot);
+	color-scheme: light;
+	font-family: var(--arc-font);
+	font-synthesis: none;
+	position: relative;
+	background-color: var(--arc-bg);
+	background-image: radial-gradient(ellipse at 50% 0%, var(--arc-bg-2), var(--arc-bg) 62%);
+	background-attachment: fixed;
+}
+
+/* perspective grid floor, same as the hub */
+.fb-arcade-page::after {
+	content: "";
+	position: fixed; left: -25%; right: -25%; bottom: 0; height: 34vh;
+	pointer-events: none; z-index: 0;
+	background:
+		linear-gradient(color-mix(in srgb, var(--arc-hot) 45%, transparent) 1px, transparent 1px) 0 0 / 100% 38px,
+		linear-gradient(90deg, color-mix(in srgb, var(--arc-cool) 40%, transparent) 1px, transparent 1px) 0 0 / 56px 100%;
+	transform: perspective(280px) rotateX(62deg);
+	transform-origin: 50% 100%;
+	-webkit-mask-image: linear-gradient(to top, #000 15%, transparent 95%);
+	mask-image: linear-gradient(to top, #000 15%, transparent 95%);
+	opacity: 0.16;
+}
+.fb-arcade-page .fb-topbar, .fb-arcade-page .fb-shell, .fb-arcade-page .fb-footer { position: relative; z-index: 1; }
+
+/* top bar: same width as the Pixel Run stage, title treatment as the hub */
+.fb-topbar {
+	display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
+	width: min(960px, 100% - 32px); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 4px 0;
+}
+.fb-brand {
+	margin: 0; font: inherit; font-weight: 400;
+	font-size: clamp(22px, 5.5vw, 34px); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+	color: var(--arc-text);
+	text-shadow: 0 2px 18px color-mix(in srgb, var(--arc-hot) 22%, transparent);
+}
+.fb-tagline {
+	margin-left: auto; font-size: clamp(11px, 1.3vw, 13px); letter-spacing: .34em; text-transform: uppercase;
+	color: var(--arc-cool);
+}
+.fb-arcade-page .fb-arcade {
+	position: static; align-self: center; padding: 6px 12px; font-size: 12px; font-weight: 400;
+	letter-spacing: .12em; text-transform: uppercase; color: var(--arc-cool); background: transparent;
+	border: 1px solid color-mix(in srgb, var(--arc-cool) 40%, transparent); border-radius: 999px; backdrop-filter: none;
+}
+.fb-arcade-page .fb-arcade:hover { color: var(--arc-text); border-color: var(--arc-cool); }
+
+/* the cabinet: the hub's framed card around the portrait stage, pink top edge fading to cyan */
+.fb-cabinet {
+	width: min(960px, 100%); padding: clamp(10px, 3vw, 22px);
+	border: 1px solid transparent; border-radius: 10px;
+	background:
+		linear-gradient(#ffffff, #f3f7ff) padding-box,
+		linear-gradient(180deg, var(--arc-hot), var(--arc-cool)) border-box;
+	box-shadow: 0 20px 40px -24px rgba(40, 60, 110, .45);
+}
+.fb-arcade-page .fb-game { --fb-chrome: 230px; } /* top bar + cabinet padding + hint */
+
+/* hint and footer */
+.fb-arcade-page .fb-hint { font-family: var(--arc-font); color: var(--arc-muted); opacity: 1; letter-spacing: .08em; }
+.fb-arcade-page .fb-footer { font-family: var(--arc-font); letter-spacing: .08em; }
+.fb-arcade-page .fb-footer a { color: var(--arc-muted); }
+.fb-arcade-page .fb-install { font-family: var(--arc-font); letter-spacing: .1em; text-transform: uppercase; color: var(--arc-cool); border-color: color-mix(in srgb, var(--arc-cool) 40%, transparent); }
+
+/* wide screens: the stage fills the framed cabinet edge to edge, like the other games in the arcade.
+   The cabinet is as wide as the stage (up to 960px), so on a short screen it shrinks with it. */
+@media (min-width: 720px) and (min-aspect-ratio: 5/4) {
+	.fb-arcade-page { --arc-chrome: 190px; }
+	.fb-arcade-page .fb-cabinet {
+		padding: 0; overflow: hidden;
+		width: min(960px, 100%, calc((100vh - var(--arc-chrome)) * 1.5 + 2px));
+		width: min(960px, 100%, calc((100dvh - var(--arc-chrome)) * 1.5 + 2px));
+	}
+	.fb-arcade-page .fb-stage { border-radius: 0; box-shadow: none; }
+	.fb-arcade-page .fb-hint { margin-top: 0; padding: 10px 0; }
+	.fb-arcade-page .fb-game { --fb-chrome: var(--arc-chrome); }
+}

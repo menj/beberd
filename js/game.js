@@ -19,7 +19,12 @@
 	}, {});
 
 	// Logical world size; the canvas is scaled to fit its container.
-	var W = 420, H = 640, GROUND = 64;
+	// W is the width of the simulated world (pipes spawn just off its right edge); the stage shows the
+	// left VW of it: 420 on a portrait phone, up to the full 960 on a wide screen. The server's replay
+	// (includes/replay.php) uses the same W, H and START_X: keep them in step.
+	var W = 960, H = 640, GROUND = 64;
+	var VIEW_MIN = 420, VW = 420;
+	var START_X = 540; // where the first pipe starts: same distance from the bird as always
 	var BIRD_X = 110, BIRD_R = 15;
 	var GRAVITY = 1500, FLAP = -430, MAX_FALL = 620;
 	var STEP = 1 / 60; // fixed simulation step: the same inputs always give the same run (needed for replays and verification)
@@ -799,7 +804,8 @@
 		var dpr = Math.min(window.devicePixelRatio || 1, 2);
 		this.canvas.width = Math.max(1, Math.round(r.width * dpr));
 		this.canvas.height = Math.max(1, Math.round(r.height * dpr));
-		this.scale = this.canvas.width / W;
+		VW = Math.max(VIEW_MIN, Math.min(W, Math.round(H * r.width / Math.max(1, r.height))));
+		this.scale = this.canvas.width / VW;
 	};
 
 	Game.prototype.reset = function () {
@@ -828,7 +834,7 @@
 		this.speed = this.diff.speed;
 		this.lastGapY = (H - GROUND) / 2;
 		this.overAt = 0;
-		this.spawnPipe(W + 120);
+		for (var sx = START_X; sx <= W + 40; sx += PIPE_SPACING) { this.spawnPipe(sx); } // fill the world ahead of the bird
 	};
 
 	Game.prototype.begin = function (mode) {
@@ -1314,10 +1320,10 @@
 		ctx.fillStyle = color;
 		ctx.beginPath();
 		ctx.moveTo(0, H - GROUND);
-		for (var x = 0; x <= W; x += 6) {
+		for (var x = 0; x <= VW; x += 6) {
 			ctx.lineTo(x, base + Math.sin((x + offset) * freq) * amp + Math.sin((x + offset) * freq * 2.3) * amp * 0.4);
 		}
-		ctx.lineTo(W, H - GROUND);
+		ctx.lineTo(VW, H - GROUND);
 		ctx.closePath();
 		ctx.fill();
 		ctx.globalAlpha = 1;
@@ -1331,12 +1337,12 @@
 		sky.addColorStop(0, P.bg1);
 		sky.addColorStop(1, P.bg2);
 		ctx.fillStyle = sky;
-		ctx.fillRect(0, 0, W, H);
+		ctx.fillRect(0, 0, VW, H);
 
 		// Sun / moon.
 		ctx.globalAlpha = 0.3;
 		ctx.fillStyle = P.bird;
-		ctx.beginPath(); ctx.arc(W * 0.74, 150, 44, 0, Math.PI * 2); ctx.fill();
+		ctx.beginPath(); ctx.arc(VW * 0.74, 150, 44, 0, Math.PI * 2); ctx.fill();
 		ctx.globalAlpha = 1;
 
 		this.hills(ctx, this.distance * 0.1, H - GROUND - 120, 26, 0.012, P.hill, 0.55);
@@ -1373,12 +1379,12 @@
 
 		// Ground.
 		ctx.fillStyle = P.hill;
-		ctx.fillRect(0, H - GROUND, W, GROUND);
+		ctx.fillRect(0, H - GROUND, VW, GROUND);
 		ctx.fillStyle = P.pipe;
-		ctx.fillRect(0, H - GROUND, W, 4);
+		ctx.fillRect(0, H - GROUND, VW, 4);
 		ctx.globalAlpha = 0.25;
 		var off = -(this.distance % 32);
-		for (var x = off; x < W; x += 32) { ctx.fillRect(x, H - GROUND + 22, 16, 4); }
+		for (var x = off; x < VW; x += 32) { ctx.fillRect(x, H - GROUND + 22, 16, 4); }
 		ctx.globalAlpha = 1;
 
 		// Particles: square "pixels" to match the sprite.
@@ -1402,7 +1408,7 @@
 			ctx.globalAlpha = this.state === 'over' ? 0.35 : 0.9;
 			var k = 1 + 0.28 * this.pop; // score pops when you clear a pipe
 			ctx.save();
-			ctx.translate(W / 2, 104);
+			ctx.translate(VW / 2, 104);
 			ctx.scale(k, k);
 			ctx.fillText(String(this.score), 0, 0);
 			ctx.restore();
@@ -1412,19 +1418,19 @@
 		// Slow-mo tint, level label and active power-up chips.
 		if (this.slow > 0) {
 			ctx.fillStyle = 'rgba(140,100,255,.10)';
-			ctx.fillRect(0, 0, W, H);
+			ctx.fillRect(0, 0, VW, H);
 		}
 		if (this.state === 'playing' || this.state === 'paused') {
 			ctx.font = '700 13px ' + (getComputedStyle(this.root).fontFamily || 'sans-serif');
 			ctx.textAlign = 'center'; ctx.fillStyle = P.ink; ctx.globalAlpha = 0.55;
-			ctx.fillText('LEVEL ' + this.level, W / 2, 126);
+			ctx.fillText('LEVEL ' + this.level, VW / 2, 126);
 			ctx.globalAlpha = 1;
 			var chips = [];
 			if (this.shield) { chips.push(['shield', 1]); }
 			if (this.slow > 0) { chips.push(['slow', this.slow / POWERS.slow.time]); }
 			if (this.magnet > 0) { chips.push(['magnet', this.magnet / POWERS.magnet.time]); }
 			for (i = 0; i < chips.length; i++) {
-				var cx0 = W / 2 + (i - (chips.length - 1) / 2) * 44;
+				var cx0 = VW / 2 + (i - (chips.length - 1) / 2) * 44;
 				this.drawPowerIcon(ctx, chips[i][0], cx0, 150, 11);
 				ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(cx0 - 12, 168, 24, 4);
 				ctx.fillStyle = POWERS[chips[i][0]].color; ctx.fillRect(cx0 - 12, 168, 24 * chips[i][1], 4);
@@ -1435,7 +1441,7 @@
 		if (this.flash > 0) {
 			ctx.fillStyle = '#ffffff';
 			ctx.globalAlpha = this.flash * 0.5;
-			ctx.fillRect(0, 0, W, H);
+			ctx.fillRect(0, 0, VW, H);
 			ctx.globalAlpha = 1;
 		}
 		if (this.shake > 0) {

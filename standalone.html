@@ -17,7 +17,7 @@
     <meta name="twitter:description" content="Help Hamilton cross the Great Pipes. A tiny bird, a daily challenge, power-ups and a lot of pipes.">
     <meta name="twitter:image" content="img/og.png">
     <meta name="color-scheme" content="light dark">
-    <meta name="theme-color" content="#0b1026">
+    <meta name="theme-color" content="#f5f6f8">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -26,16 +26,23 @@
     <meta name="apple-mobile-web-app-title" content="Beberd">
     <link rel="stylesheet" href="css/game.css">
     <link rel="stylesheet" href="css/site.css">
+    <link rel="stylesheet" href="css/arcade.css">
 </head>
-<body class="fb-body">
+<body class="fb-body fb-arcade-page">
+    <header class="fb-topbar">
+                <h1 class="fb-brand">Beberd</h1>
+        <span class="fb-tagline">The Great Pipes</span>
+    </header>
     <main class="fb-shell">
-        <div class="fb-game" data-scheme="auto" data-difficulty="normal">
+        <div class="fb-cabinet">
+        <div class="fb-game" data-scheme="dawn" data-difficulty="normal">
             <noscript>Beberd needs JavaScript to run.</noscript>
+        </div>
         </div>
     </main>
     <footer class="fb-footer"></footer>
 
-    <script type="application/json" id="fb-config">{"apiUrl":"api.php","csrf":"","leaderboard":false,"showBoard":false,"appName":"Beberd","sound":true,"admin":false,"music":true,"today":null,"arcadeUrl":"","startMode":"classic"}</script>
+    <script type="application/json" id="fb-config">{"apiUrl":"api.php","csrf":"","leaderboard":false,"showBoard":false,"appName":"Beberd","sound":true,"admin":false,"music":true,"today":null,"arcadeUrl":"","publicUrl":"","startMode":"classic"}</script>
     <script src="js/sprite.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/game.js"></script>

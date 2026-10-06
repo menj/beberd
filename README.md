@@ -22,7 +22,14 @@ runs on the wrong difficulty are all rejected (the checks run on every submissio
 
 Honest limits: a determined attacker can still write a bot that flies a real, legal run, or hunt offline for an easy
 *classic* seed. The **daily challenge** is immune to seed hunting because its seed comes from the date. Keep
-`includes/replay.php` in step with `js/game.js` whenever you change physics, pipes or power-ups.
+`includes/replay.php` in step with `js/game.js` whenever you change physics, pipes, power-ups or the world size (`W`, `H`,
+`START_X`). To prove they agree, play real runs and re-verify them on the server side:
+
+```bash
+node tools/parity-harness.js 200 | php tools/parity-verify.php   # needs Playwright; prints "200 runs, 0 mismatches"
+```
+
+`PW_VIEW=1300x900` repeats it in a wide view; the result must not depend on the screen size.
 
 ## Quick start
 
@@ -166,6 +173,11 @@ Pixel Run, following the same "hub contract":
   without hard-coding anything. Keep its `version` in step with `FB_VERSION` in `includes/bootstrap.php`.
 * **Admin → General** has *Arcade link* (shows a "‹ Arcade" button and a "More games" link, for example `../`) and
   *Public address* (used for share previews). Without a database, set `arcade_url` / `public_url` in `config.php`.
+* **Arcade look:** Beberd keeps its light look (the default *Dawn* scheme) inside the arcade's shared page frame: top bar,
+  framed stage and Special Elite page text (`css/arcade.css`, `fonts/`, Apache 2.0). On wide screens the stage is a 3:2
+  landscape up to 960px wide, the same width as the other games; phones held upright keep the tall stage. The course is
+  identical either way, the wide stage just shows more of it ahead of the bird. *Arcade link* defaults to `../`; clear it for
+  a game that is not inside a hub. Installs that already saved a scheme keep it.
 * **Share previews:** Open Graph and Twitter tags use `img/og.png` (1200x630); the card image is `img/thumb.png` (1280x720).
 * **Shared player name:** the name you save is also stored as `arcade_name`, so games that read it can pre-fill it.
 * **`standalone.html`** is a static copy with no PHP, database or leaderboard: `php tools/build-standalone.php >
