@@ -5,9 +5,9 @@
  * - api.php, admin.php and install.php are never cached.
  * Bump VERSION to force clients to refresh their cache.
  */
-const VERSION = 'fb-v5';
+const VERSION = 'fb-v6';
 const SHELL = [
-	'./', 'css/game.css', 'css/site.css', 'js/game.js', 'js/sprite.js', 'js/audio.js', 'js/pwa.js',
+	'./', 'css/game.css', 'css/site.css', 'css/arcade.css', 'fonts/SpecialElite-Regular.woff2', 'js/game.js', 'js/sprite.js', 'js/audio.js', 'js/pwa.js',
 	'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'
 ];
 const NEVER = /\/(api|admin|install)\.php/;

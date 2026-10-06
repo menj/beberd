@@ -166,6 +166,10 @@ Pixel Run, following the same "hub contract":
   without hard-coding anything. Keep its `version` in step with `FB_VERSION` in `includes/bootstrap.php`.
 * **Admin → General** has *Arcade link* (shows a "‹ Arcade" button and a "More games" link, for example `../`) and
   *Public address* (used for share previews). Without a database, set `arcade_url` / `public_url` in `config.php`.
+* **Arcade look:** the page matches the hub: neon night colours (the default *Neon* scheme, `css/game.css`), the framed
+  stage, top bar and grid floor (`css/arcade.css`) and Special Elite text (`fonts/`, Apache 2.0). *Arcade link* now defaults
+  to `../`; clear it for a game that is not inside a hub. Other schemes (Auto, Dawn, Midnight...) are still in Admin → General.
+  Installs that already saved a scheme keep it.
 * **Share previews:** Open Graph and Twitter tags use `img/og.png` (1200x630); the card image is `img/thumb.png` (1280x720).
 * **Shared player name:** the name you save is also stored as `arcade_name`, so games that read it can pre-fill it.
 * **`standalone.html`** is a static copy with no PHP, database or leaderboard: `php tools/build-standalone.php >

@@ -1,0 +1,81 @@
+/* Arcade look: matches the Arcade Hub (menj.buzz/arcade/) so every game in the arcade
+   feels like one place. Loaded after site.css on the game page only; the installer and
+   admin keep their plain look. The neon colours inside the game come from the "neon"
+   scheme in game.css. */
+
+@font-face {
+	font-family: "Special Elite";
+	src: url("../fonts/SpecialElite-Regular.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+.fb-arcade-page {
+	--arc-bg: #0a0820; --arc-bg-2: #14082e; --arc-hot: #ff3c6e; --arc-cool: #35d4f0;
+	--arc-text: #f3eeff; --arc-muted: #8a86b8;
+	--arc-font: "Special Elite", "Courier New", Courier, monospace;
+	--pg-bg: var(--arc-bg); --pg-card: #0f1a2e; --pg-ink: var(--arc-text); --pg-muted: var(--arc-muted);
+	--pg-line: #2b2147; --pg-accent: var(--arc-cool);
+	font-family: var(--arc-font);
+	font-synthesis: none;
+	position: relative;
+	background-color: var(--arc-bg);
+	background-image: radial-gradient(ellipse at 50% 0%, var(--arc-bg-2), var(--arc-bg) 62%);
+	background-attachment: fixed;
+}
+
+/* perspective grid floor, same as the hub */
+.fb-arcade-page::after {
+	content: "";
+	position: fixed; left: -25%; right: -25%; bottom: 0; height: 34vh;
+	pointer-events: none; z-index: 0;
+	background:
+		linear-gradient(color-mix(in srgb, var(--arc-hot) 45%, transparent) 1px, transparent 1px) 0 0 / 100% 38px,
+		linear-gradient(90deg, color-mix(in srgb, var(--arc-cool) 40%, transparent) 1px, transparent 1px) 0 0 / 56px 100%;
+	transform: perspective(280px) rotateX(62deg);
+	transform-origin: 50% 100%;
+	-webkit-mask-image: linear-gradient(to top, #000 15%, transparent 95%);
+	mask-image: linear-gradient(to top, #000 15%, transparent 95%);
+	opacity: 0.45;
+}
+.fb-arcade-page .fb-topbar, .fb-arcade-page .fb-shell, .fb-arcade-page .fb-footer { position: relative; z-index: 1; }
+
+/* top bar: same width as the Pixel Run stage, title treatment as the hub */
+.fb-topbar {
+	display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
+	width: min(960px, 100% - 32px); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 4px 0;
+}
+.fb-brand {
+	margin: 0; font: inherit; font-weight: 400;
+	font-size: clamp(22px, 5.5vw, 34px); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+	color: var(--arc-text);
+	text-shadow: 0 0 6px rgba(255, 255, 255, .5), 0 0 24px color-mix(in srgb, var(--arc-hot) 55%, transparent);
+}
+.fb-tagline {
+	margin-left: auto; font-size: clamp(11px, 1.3vw, 13px); letter-spacing: .34em; text-transform: uppercase;
+	color: var(--arc-cool); text-shadow: 0 0 12px color-mix(in srgb, var(--arc-cool) 60%, transparent);
+}
+.fb-arcade-page .fb-arcade {
+	position: static; align-self: center; padding: 6px 12px; font-size: 12px; font-weight: 400;
+	letter-spacing: .12em; text-transform: uppercase; color: var(--arc-cool); background: transparent;
+	border: 1px solid color-mix(in srgb, var(--arc-cool) 40%, transparent); border-radius: 999px; backdrop-filter: none;
+}
+.fb-arcade-page .fb-arcade:hover { color: var(--arc-text); border-color: var(--arc-cool); }
+
+/* the cabinet: the hub's framed card around the portrait stage, pink top edge fading to cyan */
+.fb-cabinet {
+	width: min(960px, 100%); padding: clamp(10px, 3vw, 22px);
+	border: 1px solid transparent; border-radius: 10px;
+	background:
+		radial-gradient(ellipse at 50% 0%, #1a1033, #0f1a2e 70%) padding-box,
+		linear-gradient(180deg, var(--arc-hot), var(--arc-cool)) border-box;
+	box-shadow: 0 18px 40px -22px rgba(0, 0, 0, .8), 0 0 26px -10px color-mix(in srgb, var(--arc-hot) 60%, transparent);
+}
+.fb-arcade-page .fb-game { --fb-chrome: 230px; } /* top bar + cabinet padding + hint */
+
+/* hint and footer */
+.fb-arcade-page .fb-hint { font-family: var(--arc-font); color: var(--arc-muted); opacity: 1; letter-spacing: .08em; }
+.fb-arcade-page .fb-footer { font-family: var(--arc-font); letter-spacing: .08em; }
+.fb-arcade-page .fb-footer a { color: var(--arc-muted); }
+.fb-arcade-page .fb-install { font-family: var(--arc-font); letter-spacing: .1em; text-transform: uppercase; color: var(--arc-cool); border-color: color-mix(in srgb, var(--arc-cool) 40%, transparent); }

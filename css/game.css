@@ -22,6 +22,13 @@
 	--fb-bg1: #0b1026; --fb-bg2: #232b5a; --fb-hill: #1b2350; --fb-pipe: #5eead4;
 	--fb-bird: #fbbf24; --fb-beak: #fb7185; --fb-accent: #818cf8; --fb-ink: #e8ecff; --fb-surface: #141a3a;
 }
+/* Neon: the Arcade Hub palette (pink and cyan on a deep navy night). */
+.fb-game[data-scheme="neon"] {
+	--fb-bg1: #0a0820; --fb-bg2: #4a1458; --fb-hill: #1a1040; --fb-pipe: #35d4f0;
+	--fb-bird: #ffd23f; --fb-beak: #ff3c6e; --fb-accent: #ff3c6e; --fb-ink: #f3eeff; --fb-surface: #0f1a2e;
+	--fb-font: "Special Elite", "Courier New", Courier, monospace;
+	font-synthesis: none; /* the font has one weight: no fake bold */
+}
 .fb-game[data-scheme="mono"] {
 	--fb-bg1: #f4f4f5; --fb-bg2: #e4e4e7; --fb-hill: #d4d4d8; --fb-pipe: #27272a;
 	--fb-bird: #d4d4d8; --fb-beak: #71717a; --fb-accent: #18181b; --fb-ink: #18181b; --fb-surface: #ffffff;

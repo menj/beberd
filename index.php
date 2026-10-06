@@ -70,7 +70,7 @@ $config = [
     <meta name="twitter:description" content="<?= fb_h($shareDesc) ?>">
     <meta name="twitter:image" content="<?= fb_h($publicUrl) ?>img/og.png">
     <meta name="color-scheme" content="light dark">
-    <meta name="theme-color" content="#0b1026">
+    <meta name="theme-color" content="#0a0820">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -79,11 +79,19 @@ $config = [
     <meta name="apple-mobile-web-app-title" content="<?= fb_h(FB_APP_NAME) ?>">
     <link rel="stylesheet" href="css/game.css">
     <link rel="stylesheet" href="css/site.css">
+    <link rel="stylesheet" href="css/arcade.css">
 </head>
-<body class="fb-body">
+<body class="fb-body fb-arcade-page">
+    <header class="fb-topbar">
+        <?php if ($arcadeUrl !== ''): ?><a class="fb-arcade" href="<?= fb_h($arcadeUrl) ?>">&lsaquo; Arcade</a><?php endif; ?>
+        <h1 class="fb-brand"><?= fb_h(FB_APP_NAME) ?></h1>
+        <span class="fb-tagline">The Great Pipes</span>
+    </header>
     <main class="fb-shell">
+        <div class="fb-cabinet">
         <div class="fb-game" data-scheme="<?= fb_h($scheme) ?>" data-difficulty="<?= fb_h($s['difficulty']) ?>"<?= $style ? ' style="' . fb_h($style) . '"' : '' ?>>
             <noscript><?= fb_h(FB_APP_NAME) ?> needs JavaScript to run.</noscript>
+        </div>
         </div>
     </main>
     <footer class="fb-footer"><?php if ($standalone): ?><?php elseif (fb_installed()): ?><a href="admin.php">Settings</a><?php else: ?><a href="install.php">Enable leaderboard &amp; settings (optional)</a><?php endif; ?></footer>
