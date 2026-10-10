@@ -20,14 +20,15 @@ let base = process.argv[3] || '';
 function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
 (async () => {
-	let server = null;
+	let server = null, browser = null, missing = 0;
+	try {
 	if (!base) {
 		const port = 8800 + Math.floor(Math.random() * 100);
 		server = spawn('php', ['-S', '127.0.0.1:' + port, '-t', path.join(__dirname, '..')], { stdio: 'ignore' });
 		base = 'http://127.0.0.1:' + port + '/index.php';
 		await new Promise((r) => setTimeout(r, 1200));
 	}
-	const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
+	browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
 	const vp = (process.env.PW_VIEW || '500x800').split('x').map(Number); // try 500x800 (portrait) and 1300x900 (wide)
 	const page = await browser.newPage({ viewport: { width: vp[0], height: vp[1] } });
 	await page.goto(base, { waitUntil: 'domcontentloaded' });
@@ -61,9 +62,13 @@ function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let 
 			// let the death settle so die() has packaged the replay
 			return { replay: g.replay, score: g.score, difficulty: g.runDiffName, state: g.state, cheated: g.cheated };
 		}, { ...plan, diffs: DIFFS });
-		if (!out.replay) { process.stderr.write(`run ${i}: no replay (state=${out.state})\n`); continue; }
+		if (!out.replay) { missing++; process.stderr.write(`run ${i}: no replay (state=${out.state})\n`); continue; }
 		process.stdout.write(JSON.stringify({ replay: out.replay, score: out.score, official: out.difficulty }) + '\n');
 	}
-	await browser.close();
-	if (server) { server.kill(); }
+	// last line tells tools/parity-verify.php how many runs to expect, so a skipped run fails the check even in a pipe
+	process.stdout.write(JSON.stringify({ harness: { runs: RUNS, missing } }) + '\n');
+	} finally {
+		if (browser) { await browser.close().catch(() => {}); }
+		if (server) { server.kill(); }
+	}
 })().catch((e) => { process.stderr.write(String(e && e.stack || e) + '\n'); process.exit(2); });

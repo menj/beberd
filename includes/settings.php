@@ -53,13 +53,20 @@ function fb_tabs(): array
     ];
 }
 
+/** Arcade back-link when nothing is saved: config.php's arcade_url (an explicit '' means none), else the parent folder. */
+function fb_arcade_default(): string
+{
+    $c = fb_config();
+    return array_key_exists('arcade_url', $c) ? (string) $c['arcade_url'] : '../';
+}
+
 function fb_setting_defaults(): array
 {
     return [
         'site_title'       => FB_APP_NAME,
         'leaderboard'      => 1,
         'leaderboard_size' => 10,
-        'arcade_url'       => '../',
+        'arcade_url'       => '',
         'public_url'       => '',
         'scheme'           => 'dawn',
         'custom'           => [
