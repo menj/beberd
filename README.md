@@ -29,7 +29,7 @@ Honest limits: a determined attacker can still write a bot that flies a real, le
 node tools/parity-harness.js 200 | php tools/parity-verify.php   # needs Playwright; prints "200 runs, 0 mismatches"
 ```
 
-`PW_VIEW=1300x900` repeats it in a wide view; the result must not depend on the screen size.
+Repeat it in a wide view with `PW_VIEW=1300x900 node tools/parity-harness.js 200 | php tools/parity-verify.php`; the result must not depend on the screen size.
 
 ## Quick start
 
@@ -172,12 +172,14 @@ Pixel Run, following the same "hub contract":
 * **`game.json`** describes the game (title, tagline, thumbnail, icon, share image, features) so a hub can build a card
   without hard-coding anything. Keep its `version` in step with `FB_VERSION` in `includes/bootstrap.php`.
 * **Admin → General** has *Arcade link* (shows a "‹ Arcade" button and a "More games" link, for example `../`) and
-  *Public address* (used for share previews). Without a database, set `arcade_url` / `public_url` in `config.php`.
+  *Public address* (used for share previews). Leave *Arcade link* blank for the default (`config.php`'s `arcade_url`, else `../`)
+  or type `none` to hide it. Without a database, set `arcade_url` / `public_url` in `config.php`.
 * **Arcade look:** Beberd keeps its light look (the default *Dawn* scheme) inside the arcade's shared page frame: top bar,
   framed stage and Special Elite page text (`css/arcade.css`, `fonts/`, Apache 2.0). On wide screens the stage is a 3:2
   landscape up to 960px wide, the same width as the other games; phones held upright keep the tall stage. The course is
-  identical either way, the wide stage just shows more of it ahead of the bird. *Arcade link* defaults to `../`; clear it for
-  a game that is not inside a hub. Installs that already saved a scheme keep it.
+  identical either way, the wide stage just shows more of it ahead of the bird. *Arcade link* defaults to `../`; for a game that is not
+  inside a hub, type `none` in Admin → General (a saved link there wins over `config.php`), or without a database set
+  `'arcade_url' => ''` in `config.php`. Installs that already saved a scheme keep it.
 * **Share previews:** Open Graph and Twitter tags use `img/og.png` (1200x630); the card image is `img/thumb.png` (1280x720).
 * **Shared player name:** the name you save is also stored as `arcade_name`, so games that read it can pre-fill it.
 * **`standalone.html`** is a static copy with no PHP, database or leaderboard: `php tools/build-standalone.php >
