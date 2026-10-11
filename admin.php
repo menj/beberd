@@ -188,7 +188,7 @@ function fb_input_name(string $field): string
             <div class="fb-field"><label for="f-size">Entries shown</label>
                 <input id="f-size" type="number" min="3" max="50" name="<?= fb_input_name('leaderboard_size') ?>" value="<?= (int) $s['leaderboard_size'] ?>"></div>
             <div class="fb-field"><label for="f-arcade">Arcade link</label>
-                <input id="f-arcade" name="<?= fb_input_name('arcade_url') ?>" value="<?= fb_h($s['arcade_url']) ?>" placeholder="blank = ../ (default) or https://menj.buzz/arcade/">
+                <input id="f-arcade" name="<?= fb_input_name('arcade_url') ?>" value="<?= fb_h($s['arcade_url']) ?>" placeholder="blank = default (../), none = hide, or https://menj.buzz/arcade/">
                 <p class="fb-muted">Shows a "‹ Arcade" link on the game when it lives inside an arcade hub. Leave empty for none.</p></div>
             <div class="fb-field"><label for="f-public">Public address</label>
                 <input id="f-public" name="<?= fb_input_name('public_url') ?>" value="<?= fb_h($s['public_url']) ?>" placeholder="https://menj.buzz/arcade/beberd/">

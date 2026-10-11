@@ -27,7 +27,7 @@ $style  = $scheme === 'custom' ? fb_custom_style($s['custom']) : '';
 $isAdmin = $hasDb && !empty($s['admin_cheat']) && fb_is_admin();
 
 // Hosting inside an arcade hub: back-link and share-preview address (settings first, then config.php).
-$arcadeUrl  = $standalone ? '' : fb_safe_url($s['arcade_url'] !== '' ? $s['arcade_url'] : fb_arcade_default());
+$arcadeUrl  = $standalone || $s['arcade_url'] === 'none' ? '' : fb_safe_url($s['arcade_url'] !== '' ? $s['arcade_url'] : fb_arcade_default());
 $publicUrl  = $standalone ? '' : fb_public_url($s['public_url'] !== '' ? $s['public_url'] : (string) (fb_config()['public_url'] ?? ''));
 $shareDesc  = 'Help Hamilton cross the Great Pipes. A tiny bird, a daily challenge, power-ups and a lot of pipes.';
 if ($isAdmin) {

@@ -53,7 +53,7 @@ function fb_tabs(): array
     ];
 }
 
-/** Arcade back-link when nothing is saved: config.php's arcade_url (an explicit '' means none), else the parent folder. */
+/** Arcade back-link when the setting is blank: config.php's arcade_url (an explicit '' means none), else the parent folder. */
 function fb_arcade_default(): string
 {
     $c = fb_config();
@@ -112,7 +112,8 @@ function fb_settings_sanitize(string $tab, array $in, array $current): array
             $current['site_title']       = $title !== '' ? mb_substr($title, 0, 60) : FB_APP_NAME;
             $current['leaderboard']      = empty($in['leaderboard']) ? 0 : 1;
             $current['leaderboard_size'] = max(3, min(50, (int) ($in['leaderboard_size'] ?? 10)));
-            $current['arcade_url']       = fb_safe_url($in['arcade_url'] ?? '');
+            $arc = trim((string) ($in['arcade_url'] ?? ''));
+            $current['arcade_url']       = strtolower($arc) === 'none' ? 'none' : fb_safe_url($arc); // 'none' hides the link; blank uses the default
             $current['public_url']       = fb_safe_url($in['public_url'] ?? '');
             break;
 
