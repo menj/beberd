@@ -90,6 +90,7 @@
 	}
 
 	var MEDALS = [
+		{ at: 100, key: 'platinum', label: 'Platinum' },
 		{ at: 50, key: 'gold', label: 'Gold' },
 		{ at: 25, key: 'silver', label: 'Silver' },
 		{ at: 10, key: 'bronze', label: 'Bronze' }

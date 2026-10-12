@@ -271,6 +271,7 @@
 .fb-medal--bronze { background: radial-gradient(circle at 30% 25%, #f0b27a, #b9692f); }
 .fb-medal--silver { background: radial-gradient(circle at 30% 25%, #f4f6f8, #a9b3bd); }
 .fb-medal--gold   { background: radial-gradient(circle at 30% 25%, #ffe680, #d9a21b); }
+.fb-medal--platinum { background: radial-gradient(circle at 30% 25%, #ffffff, #bfe3ff 55%, #8fb8d8); }
 @keyframes fb-medal-in { from { transform: scale(.3) rotate(-25deg); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---- Leaderboard ---- */
