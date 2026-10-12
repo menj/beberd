@@ -90,6 +90,7 @@
 	}
 
 	var MEDALS = [
+		{ at: 100, key: 'platinum', label: 'Platinum' },
 		{ at: 50, key: 'gold', label: 'Gold' },
 		{ at: 25, key: 'silver', label: 'Silver' },
 		{ at: 10, key: 'bronze', label: 'Bronze' }
@@ -1658,7 +1659,7 @@
 		x.globalAlpha = 0.6; x.font = '700 38px ' + font; x.fillText('POINTS', W2 / 2, 880); x.globalAlpha = 1;
 		var medal = this.assisted ? null : medalFor(this.score);
 		if (medal) {
-			var mc = { bronze: ['#f0b27a', '#b9692f'], silver: ['#f4f6f8', '#a9b3bd'], gold: ['#ffe680', '#d9a21b'] }[medal.key];
+			var mc = { bronze: ['#f0b27a', '#b9692f'], silver: ['#f4f6f8', '#a9b3bd'], gold: ['#ffe680', '#d9a21b'], platinum: ['#ffffff', '#8fb8d8'] }[medal.key];
 			var mg = x.createRadialGradient(W2 / 2 - 14, 975, 8, W2 / 2, 990, 70); mg.addColorStop(0, mc[0]); mg.addColorStop(1, mc[1]);
 			x.fillStyle = mg; x.beginPath(); x.arc(W2 / 2, 990, 64, 0, Math.PI * 2); x.fill();
 			x.fillStyle = 'rgba(0,0,0,.55)'; x.font = '800 22px ' + font; x.fillText(medal.label.toUpperCase(), W2 / 2, 997);

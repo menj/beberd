@@ -76,7 +76,7 @@ Built in: Auto (light/dark), Dawn, Midnight, Mono, Forest, Sunset, plus Custom.
 * **Classic** is endless flying at your chosen difficulty.
 * **Daily challenge** gives everyone the same pipes, coins, power-ups and goals for the day (seeded by the UTC date, always Normal difficulty).
   With a database it has its own daily leaderboard; without one your best of the day is kept in the browser.
-* **Medals** at 10 (bronze), 25 (silver) and 50 (gold).
+* **Medals** at 10 (bronze), 25 (silver), 50 (gold) and 100 (platinum).
 * **Levels:** every 8 pipes is a new level, and each level is a little harder: gaps tighten slightly (down to 82%),
   **moving pipes** (marked with arrows) appear more often and swing wider and faster (capped at 60px), and from level 3
   **narrow pipes** mix in. The first five pipes are always plain.
